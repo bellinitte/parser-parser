@@ -1,0 +1,45 @@
+{
+  "name": "parser-parser",
+  "version": "0.1.0",
+  "description": "EBNF production rule parsing tool",
+  "author": "Karol Belina <karolbelina@gmail.com>",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/karolbelina/parser-parser.git"
+  },
+  "license": "MIT",
+  "homepage": "https://karolbelina.github.io/parser-parser/",
+  "bugs": {
+    "url": "https://github.com/karolbelina/parser-parser/issues"
+  },
+  "keywords": [
+    "EBNF",
+    "parser",
+    "parsing",
+    "context-free grammar",
+    "parser combinators"
+  ],
+  "scripts": {
+    "build": "rimraf dist pkg && cross-env NODE_ENV=production webpack",
+    "start": "rimraf dist pkg && webpack-dev-server --open -d",
+    "test": "cargo test && wasm-pack test --headless"
+  },
+  "dependencies": {
+    "wasm": "file:pkg"
+  },
+  "devDependencies": {
+    "@wasm-tool/wasm-pack-plugin": "^1.1.0",
+    "cross-env": "^5.2.0",
+    "css-loader": "^2.1.1",
+    "mini-css-extract-plugin": "^0.6.0",
+    "rimraf": "^3.0.0",
+    "serve": "^11.0.0",
+    "style-loader": "^0.23.1",
+    "svelte": "^3.0.0",
+    "svelte-loader": "2.13.3",
+    "webpack": "^4.43.0",
+    "webpack-cli": "^3.3.12",
+    "webpack-dev-server": "^3.11.0",
+    "copy-webpack-plugin": "^5.0.3"
+  }
+}
