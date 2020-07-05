@@ -1,5 +1,5 @@
 <script>
-    import { getMessage } from 'wasm';
+    import { getMessage } from 'core';
 </script>
 
 <style>
