@@ -1,5 +1,5 @@
 # parser-parser
 
-[![CI](https://github.com/karolbelina/parser-parser/workflows/CI/badge.svg)](https://github.com/karolbelina/parser-parser/actions?query=workflow%3ACI)
+[![CI/CD](https://github.com/karolbelina/parser-parser/workflows/CI/CD/badge.svg)](https://github.com/karolbelina/parser-parser/actions?query=workflow%3ACI/CD)
 
 :construction: Work in progress :construction:
