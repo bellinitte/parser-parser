@@ -11,6 +11,7 @@ keywords = ["EBNF", "parser", "parsing", "context-free grammar", "parser combina
 
 [lib]
 crate-type = ["cdylib"]
+path = "core/src/lib.rs"
 
 [profile.release]
 lto = true

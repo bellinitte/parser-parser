@@ -11,7 +11,7 @@ const dist = path.resolve(__dirname, "dist");
 module.exports = {
     mode,
     entry: {
-        bundle: ["./src/index.js"]
+        bundle: [path.resolve('site', 'src', 'index.js')]
     },
     resolve: {
         alias: {
@@ -55,7 +55,7 @@ module.exports = {
         }),
         
         new CopyPlugin([
-            path.resolve(__dirname, "static")
+            path.resolve(__dirname, "site", "public")
         ]),
 
         new WasmPackPlugin({
