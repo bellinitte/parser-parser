@@ -7,6 +7,7 @@ const mode = process.env.NODE_ENV || 'development';
 const prod = mode === 'production';
 
 const dist = path.resolve(__dirname, "dist");
+const pkg = path.resolve(__dirname, "pkg");
 
 module.exports = {
     mode,
@@ -16,7 +17,7 @@ module.exports = {
     resolve: {
         alias: {
             svelte: path.resolve('node_modules', 'svelte'),
-            core: path.resolve(__dirname, 'pkg')
+            core: pkg
         },
         extensions: ['.mjs', '.js', '.svelte'],
         mainFields: ['svelte', 'browser', 'module', 'main']
@@ -26,7 +27,7 @@ module.exports = {
         filename: "[name].js"
     },
     devServer: {
-        contentBase: dist,
+        contentBase: dist
     },
     module: {
         rules: [
