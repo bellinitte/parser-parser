@@ -1,0 +1,15 @@
+{
+  "extends": "@tsconfig/svelte/tsconfig.json",
+  "compilerOptions": {
+    "module": "ESNext",
+    "allowSyntheticDefaultImports": true,
+    "baseUrl": ".",
+    "paths": {
+      "core": [
+        "target/wasm-pack/parser-parser-core/index.js"
+      ]
+    }
+  },
+  "include": ["src/**/*"],
+  "exclude": ["node_modules/*"],
+}

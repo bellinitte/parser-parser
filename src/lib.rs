@@ -185,12 +185,18 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
     ))(i)
 }
 
-#[wasm_bindgen(start)]
-pub fn main() -> Result<(), JsValue> {
+#[no_mangle]
+#[wasm_bindgen(js_name = getMessage)]
+pub fn get_message() -> String {
+    "world".to_owned()
+}
+
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if the code ever panics.
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
-
-    Ok(())
 }
 
 #[cfg(test)]
