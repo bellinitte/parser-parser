@@ -1,12 +1,14 @@
 import { render } from '@testing-library/svelte'
+import App from '../src/App.svelte';
+
+const core = {
+  getMessage: () => "world",
+};
 
 it('displays "Hello world!"', async () => {
-  expect.assertions(1);
-  const App = await import('../src/App.svelte');
-  const { getByRole } = render(App)
+  const { getByRole } = render(App, { core: core });
 
   const h1 = getByRole('heading')
-  console.log("dupaaaaaaaaaaaaaaaaa")
 
   expect(h1.textContent).toBe('Hello world!')
 });

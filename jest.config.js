@@ -1,22 +1,7 @@
-const sveltePreprocess = require('svelte-preprocess');
-
 module.exports = {
 	transform: {
+		'^.+\\.svelte$': 'svelte-jester',
 		'^.+\\.js$': 'babel-jest',
-		'^.+\\.svelte$': [
-			'svelte-jester',
-			{
-				preprocess: true,
-				debug: true,
-				noStyles: true,
-				compilerOptions: {}
-			}
-		]
 	},
-	transformIgnorePatterns: ['/(?!pkg)'],
-	moduleFileExtensions: ['js', 'svelte', 'wasm'],
-	coverageReporters: ['html'],
-	bail: false,
-	verbose: true,
-	roots: ["tests"]
+	moduleFileExtensions: ['js', 'svelte'],
 };
