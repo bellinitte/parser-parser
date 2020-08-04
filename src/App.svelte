@@ -1,5 +1,5 @@
 <script>
-    import { getMessage } from 'core';
+    export let core;
 </script>
 
 <style>
@@ -8,4 +8,4 @@
     }
 </style>
 
-<h1>Hello {getMessage()}!</h1>
+<h1>Hello {core.getMessage()}!</h1>
