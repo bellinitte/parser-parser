@@ -1,4 +1,5 @@
 use wasm_bindgen::prelude::*;
+use js_sys::JsString;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -185,10 +186,9 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
     ))(i)
 }
 
-#[no_mangle]
 #[wasm_bindgen(js_name = getMessage)]
-pub fn get_message() -> String {
-    "world".to_owned()
+pub fn get_message() -> JsString {
+    "world".to_owned().into()
 }
 
 pub fn set_panic_hook() {

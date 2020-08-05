@@ -22,6 +22,7 @@ default = ["wee_alloc", "console_error_panic_hook"]
 wasm-bindgen = "0.2.45"
 wee_alloc = { version = "0.4.2", optional = true }
 console_error_panic_hook = { version = "0.1.5", optional = true }
+js-sys = "0.3.32"
 nom = "6.0.0-alpha1"
 
 [dependencies.web-sys]
@@ -31,5 +32,4 @@ features = ["console"]
 [dev-dependencies]
 wasm-bindgen-test = "0.3"
 futures = "0.1.27"
-js-sys = "0.3.22"
 wasm-bindgen-futures = "0.3.22"
