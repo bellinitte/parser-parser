@@ -12,6 +12,29 @@ use nom::{
 
 pub mod error;
 
+pub struct Grammar {
+    productions: Vec<Production>,
+}
+
+pub struct Production {
+    pub lhs: String,
+    rhs: Vec<Expression>,
+}
+
+pub struct Expression {
+    terms: Vec<Term>,
+}
+
+pub enum Term {
+    Optional(Vec<Expression>),
+    Repeated(Vec<Expression>),
+    Grouped(Vec<Expression>),
+    Nonterminal(String),
+    Terminal(String),
+    Special(String),
+    Empty,
+}
+
 /// Parses a '{gap separator}' from ISO/IEC 14977, which is a possibly empty sequence of
 /// 'gap separators' defined as
 /// ```ebnf
@@ -88,7 +111,7 @@ pub fn is_terminal_character(i: char) -> bool {
 ///     Ok((" abc", "test2"))
 /// );
 /// ```
-pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     let (rest, offset) = match i.chars().next().map(|c| {
         let b = c.is_alphabetic();
         (c, b)
@@ -100,7 +123,9 @@ pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
     match rest.find(|c: char| !c.is_alphanumeric()) {
         Some(pos) => Ok(i.take_split(pos + offset)),
         None => Ok(i.take_split(i.len())),
-    }
+    }.map(|(i, ident)| -> (&str, Term) {
+        (i, Term::Nonterminal(ident.to_owned()))
+    })
 }
 
 /// Parses a special sequence from ISO/IEC 14977, which is any sequence
@@ -123,21 +148,23 @@ pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
 ///     Ok(("", " anything really "))
 /// );
 /// ```
-pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{
         bytes::complete::take_till,
         character::complete::char,
-        combinator::cut,
+        combinator::{cut, map},
         sequence::{preceded, terminated},
     };
 
-    preceded(
+    map(preceded(
         char('?'),
         cut(terminated(
             take_till(|c| !is_terminal_character(c) || c == '?'),
             char('?'),
         )),
-    )(i)
+    ), |s: &str| -> Term {
+        Term::Special(s.to_owned())
+    })(i)
 }
 
 /// Parses a terminal string from ISO/IEC 14977, which is a non-zero sequence of
@@ -159,16 +186,17 @@ pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
 /// # Example
 ///
 ///
-pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, &'a str, E> {
+pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{
         branch::alt,
         bytes::complete::take_till1,
         character::complete::char,
         combinator::cut,
         sequence::{preceded, terminated},
+        combinator::map,
     };
 
-    alt((
+    map(alt((
         preceded(
             char('\''),
             cut(terminated(
@@ -183,7 +211,131 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
                 char('"'),
             )),
         ),
+    )), |s: &str| -> Term {
+        Term::Terminal(s.to_owned())
+    })(i)
+}
+
+pub fn grouped_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::{character::complete::char, combinator::map, sequence::delimited};
+
+    map(delimited(char('('), definitions_list, char(')')), |e: Vec<Expression>| -> Term {
+        Term::Grouped(e)
+    })(i)
+}
+
+pub fn repeated_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
+
+    map(delimited(alt((tag("{"), tag("(:"))), definitions_list, alt((tag("}"), tag(":)")))), |e: Vec<Expression>| -> Term {
+        Term::Repeated(e)
+    })(i)
+}
+
+pub fn optional_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
+
+    map(delimited(alt((tag("["), tag("(/"))), definitions_list, alt((tag("]"), tag("/)")))), |e: Vec<Expression>| -> Term {
+        Term::Optional(e)
+    })(i)
+}
+
+pub fn syntactic_primary<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::branch::alt;
+
+    alt((
+        optional_sequence,
+        repeated_sequence,
+        grouped_sequence,
+        meta_identifier,
+        terminal_string,
+        special_sequence,
+        empty_sequence,
     ))(i)
+}
+
+pub fn empty_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    Ok((i, Term::Empty))
+}
+
+pub fn syntactic_factor<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::{character::complete::char, combinator::opt, sequence::terminated};
+
+    let (i, number): (&str, Option<usize>) = opt(terminated(integer, char('*')))(i)?;
+    let (i, primary) = syntactic_primary(i)?;
+    Ok(match number {
+        None => (i, primary),
+        Some(n) => (i, Term::Grouped(vec![Expression {
+            terms: (0..n).map(|_| primary).collect()
+        }]))
+    })
+}
+
+pub fn syntactic_exception<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    // TODO a syntactic-factor that could be replaced by a syntactic-factor containing no meta-identifiers
+    syntactic_factor(i)
+}
+
+pub fn syntactic_term<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+    use nom::{character::complete::char, combinator::opt, sequence::preceded};
+
+    let (i, factor) = syntactic_factor(i)?;
+    let (i, exception) = opt(preceded(char('-'), syntactic_exception))(i)?;
+    Ok((i, factor))
+}
+
+pub fn single_definition<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Vec<Term>, E> {
+    use nom::{character::complete::char, multi::separated_list1};
+
+    separated_list1(char(','), syntactic_term)(i)
+}
+
+pub fn definitions_list<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Vec<Expression>, E> {
+    use nom::{character::complete::one_of, combinator::{iterator, map}, multi::separated_list1};
+
+    let mut it = iterator(i, separated_list1(one_of("|/!"), single_definition));
+    let parsed = it.map(|t: Vec<Term>| -> Expression {
+        Expression { terms: t }
+    });
+    it.finish()?
+    // map(
+    //     separated_list1(one_of("|/!"), single_definition),
+    //     |t: Vec<Vec<Term>>| -> Vec<Expression> {
+    //         t.iter()
+    //             .map(|s: &Vec<Term>| -> Expression { Expression { terms: *s } })
+    //             .collect()
+    //     },
+    // )(i)
+}
+
+pub fn syntax_rule<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, Production, E> {
+    use nom::character::complete::{char, one_of};
+
+    let (i, identifier) = meta_identifier(i)?;
+    let (i, _) = char('=')(i)?;
+    let (i, definitions) = definitions_list(i)?;
+    let (i, _) = one_of(";.")(i)?;
+    Ok((i, Production {
+        lhs: match identifier {
+            Term::Nonterminal(ident) => ident,
+            _ => unreachable!()
+        },
+        rhs: definitions,
+    }))
+}
+
+pub fn syntax<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Grammar, E> {
+    use nom::{combinator::map, multi::many1};
+
+    map(many1(syntax_rule), |p: Vec<Production>| -> Grammar {
+        Grammar {
+            productions: p,
+        }
+    })(i)
 }
 
 #[wasm_bindgen(js_name = getMessage)]
@@ -191,10 +343,8 @@ pub fn get_message() -> JsString {
     "world".to_owned().into()
 }
 
-pub fn set_panic_hook() {
-    // When the `console_error_panic_hook` feature is enabled, we can call the
-    // `set_panic_hook` function at least once during initialization, and then
-    // we will get better error messages if the code ever panics.
+#[wasm_bindgen(start)]
+pub fn main() -> Result<(), JsValue> {
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }
