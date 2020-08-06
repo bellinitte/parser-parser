@@ -81,10 +81,10 @@ pub fn gap_separation<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str
 /// ```rust
 /// assert_eq!(integer::<(&str, ErrorKind)>("123"), Ok(("", 123)));
 /// ```
-pub fn integer<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, usize, E> {
+pub fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, usize, E> {
     use nom::{character::complete::digit1, combinator::map_res};
-
-    map_res(digit1, |s: &str| s.parse())(i)
+ 
+    skipped(map_res(digit1, |s: &str| s.parse()))(i)
 }
 
 pub fn is_terminal_character(i: char) -> bool {
@@ -114,19 +114,44 @@ pub fn is_terminal_character(i: char) -> bool {
 /// );
 /// ```
 pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
-    let (rest, offset) = match i.chars().next().map(|c| {
-        let b = c.is_alphabetic();
-        (c, b)
-    }) {
-        Some((c, true)) => Ok((&i[c.len_utf8()..], c.len_utf8())),
-        _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char))),
-    }?;
+    let (i, _) = skip(i)?;
 
-    match rest.find(|c: char| !c.is_alphanumeric()) {
-        Some(pos) => Ok(i.take_split(pos + offset)),
-        None => Ok(i.take_split(i.len())),
-    }
-    .map(|(i, ident)| -> (&str, Term) { (i, Term::Nonterminal(ident.to_owned())) })
+    skipped(|i| {
+        let (rest, offset) = match i.chars().next().map(|c| {
+            let b = c.is_alphabetic();
+            (c, b)
+        }) {
+            Some((c, true)) => Ok((&i[c.len_utf8()..], c.len_utf8())),
+            _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char))),
+        }?;
+    
+        match rest.find(|c: char| !c.is_alphanumeric()) {
+            Some(pos) => Ok(i.take_split(pos + offset)),
+            None => Ok(i.take_split(i.len())),
+        }
+        .map(|(i, ident)| -> (&str, Term) { (i, Term::Nonterminal(ident.to_owned())) })
+    })(i)
+}
+
+fn skip<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
+    use nom::combinator::opt;
+
+    let (i, _) = gap_separation(i)?;
+    let (i, _) = opt(bracketed_textual_comment)(i)?;
+    let (i, _) = gap_separation(i)?;
+    Ok((i, ()))
+}
+
+pub fn skipped<'a, O, E: ParseError<&'a str>, F>(mut f: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+where
+  F: FnMut(&'a str) -> IResult<&'a str, O, E> + 'a,
+{
+  move |i: &'a str| {
+    let (i, _) = skip(i)?;
+    let (i, res) = f(i)?;
+    let (i, _) = skip(i)?;
+    Ok((i, res))
+  }
 }
 
 /// Parses a special sequence from ISO/IEC 14977, which is any sequence
@@ -149,7 +174,7 @@ pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
 ///     Ok(("", " anything really "))
 /// );
 /// ```
-pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn special_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{
         bytes::complete::take_till,
         character::complete::char,
@@ -157,7 +182,7 @@ pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
         sequence::{preceded, terminated},
     };
 
-    map(
+    skipped(map(
         preceded(
             char('?'),
             cut(terminated(
@@ -166,7 +191,7 @@ pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
             )),
         ),
         |s: &str| -> Term { Term::Special(s.to_owned()) },
-    )(i)
+    ))(i)
 }
 
 /// Parses a terminal string from ISO/IEC 14977, which is a non-zero sequence of
@@ -188,7 +213,7 @@ pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
 /// # Example
 ///
 ///
-pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn terminal_string<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{
         branch::alt,
         bytes::complete::take_till1,
@@ -198,7 +223,7 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
         sequence::{preceded, terminated},
     };
 
-    map(
+    skipped(map(
         alt((
             preceded(
                 char('\''),
@@ -216,7 +241,7 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
             ),
         )),
         |s: &str| -> Term { Term::Terminal(s.to_owned()) },
-    )(i)
+    ))(i)
 }
 
 pub fn grouped_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
@@ -254,7 +279,7 @@ pub fn optional_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a 
     )(i)
 }
 
-pub fn syntactic_primary<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn syntactic_primary<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::branch::alt;
 
     alt((
@@ -272,7 +297,7 @@ pub fn empty_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str
     Ok((i, Term::Empty))
 }
 
-pub fn syntactic_factor<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn syntactic_factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{character::complete::char, combinator::opt, sequence::terminated};
 
     let (i, number): (&str, Option<usize>) = opt(terminated(integer, char('*')))(i)?;
@@ -288,12 +313,12 @@ pub fn syntactic_factor<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
     })
 }
 
-pub fn syntactic_exception<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn syntactic_exception<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     // TODO a syntactic-factor that could be replaced by a syntactic-factor containing no meta-identifiers
     syntactic_factor(i)
 }
 
-pub fn syntactic_term<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn syntactic_term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{character::complete::char, combinator::opt, sequence::preceded};
 
     let (i, factor) = syntactic_factor(i)?;
@@ -301,7 +326,7 @@ pub fn syntactic_term<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str
     Ok((i, factor))
 }
 
-pub fn single_definition<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Vec<Term>, E> {
+pub fn single_definition<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<Term>, E> {
     use nom::{character::complete::char, multi::separated_list1};
 
     separated_list1(char(','), syntactic_term)(i)
@@ -368,6 +393,7 @@ pub fn bracketed_textual_comment<'a, E: ParseError<&'a str>>(
         sequence::{preceded, terminated},
     };
 
+    // TODO allow only terminal_characters inside the comment (along with the whitespace)
     map(
         preceded(tag("(*"), cut(terminated(take_until("*)"), tag("*)")))),
         |_| (),
@@ -449,6 +475,9 @@ mod tests {
             integer::<(&str, ErrorKind)>("test"),
             Err(Error(("test", ErrorKind::Digit)))
         );
+        // Skips
+        assert_eq!(integer::<(&str, ErrorKind)>("  123 "), Ok(("", 123)));
+        assert_eq!(integer::<(&str, ErrorKind)>("(**)56 (**)"), Ok(("", 56)));
     }
 
     #[test]
@@ -469,15 +498,32 @@ mod tests {
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("test abc"),
-            Ok((" abc", Term::Nonterminal("test".to_owned())))
-        );
-        assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("  test"),
-            Err(Error(("  test", ErrorKind::Char)))
+            Ok(("abc", Term::Nonterminal("test".to_owned())))
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("藏京٣¾  abc"),
-            Ok(("  abc", Term::Nonterminal("藏京٣¾".to_owned())))
+            Ok(("abc", Term::Nonterminal("藏京٣¾".to_owned())))
+        );
+        // Skips
+        assert_eq!(
+            meta_identifier::<(&str, ErrorKind)>("  test"),
+            Ok(("", Term::Nonterminal("test".to_owned())))
+        );
+        assert_eq!(
+            meta_identifier::<(&str, ErrorKind)>("  test  abc"),
+            Ok(("abc", Term::Nonterminal("test".to_owned())))
+        );
+        assert_eq!(
+            meta_identifier::<(&str, ErrorKind)>("abc(* comment *)"),
+            Ok(("", Term::Nonterminal("abc".to_owned())))
+        );
+        assert_eq!(
+            meta_identifier::<(&str, ErrorKind)>("(**)a(**)b"),
+            Ok(("b", Term::Nonterminal("a".to_owned())))
+        );
+        assert_eq!(
+            meta_identifier::<(&str, ErrorKind)>("  (**) a (**)  b"),
+            Ok(("b", Term::Nonterminal("a".to_owned())))
         );
     }
 
@@ -491,7 +537,7 @@ mod tests {
         );
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("?藏!? abc"),
-            Ok((" abc", Term::Special("藏!".to_owned())))
+            Ok(("abc", Term::Special("藏!".to_owned())))
         );
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("? not closed"),
@@ -508,6 +554,19 @@ mod tests {
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("??"),
             Ok(("", Term::Special("".to_owned())))
+        );
+        assert_eq!(
+            special_sequence::<(&str, ErrorKind)>("? test (* comment *) ?"),
+            Ok(("", Term::Special(" test (* comment *) ".to_owned())))
+        );
+        // Skips
+        assert_eq!(
+            special_sequence::<(&str, ErrorKind)>("  ? test ?  "),
+            Ok(("", Term::Special(" test ".to_owned())))
+        );
+        assert_eq!(
+            special_sequence::<(&str, ErrorKind)>(" (**) ? test ?  (**) "),
+            Ok(("", Term::Special(" test ".to_owned())))
         );
     }
 
@@ -546,6 +605,14 @@ mod tests {
         assert_eq!(
             terminal_string::<(&str, ErrorKind)>("\"\""),
             Err(Failure(("\"", ErrorKind::TakeTill1)))
+        );
+        assert_eq!(
+            terminal_string::<(&str, ErrorKind)>("  'a string'  "),
+            Ok(("", Term::Terminal("a string".to_owned())))
+        );
+        assert_eq!(
+            terminal_string::<(&str, ErrorKind)>(" (**) 'a string' (**) "),
+            Ok(("", Term::Terminal("a string".to_owned())))
         );
     }
 
