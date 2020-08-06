@@ -1,5 +1,5 @@
-use wasm_bindgen::prelude::*;
 use js_sys::JsString;
+use wasm_bindgen::prelude::*;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -21,10 +21,12 @@ pub struct Production {
     rhs: Vec<Expression>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Expression {
     terms: Vec<Term>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Term {
     Optional(Vec<Expression>),
     Repeated(Vec<Expression>),
@@ -123,9 +125,8 @@ pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
     match rest.find(|c: char| !c.is_alphanumeric()) {
         Some(pos) => Ok(i.take_split(pos + offset)),
         None => Ok(i.take_split(i.len())),
-    }.map(|(i, ident)| -> (&str, Term) {
-        (i, Term::Nonterminal(ident.to_owned()))
-    })
+    }
+    .map(|(i, ident)| -> (&str, Term) { (i, Term::Nonterminal(ident.to_owned())) })
 }
 
 /// Parses a special sequence from ISO/IEC 14977, which is any sequence
@@ -156,15 +157,16 @@ pub fn special_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
         sequence::{preceded, terminated},
     };
 
-    map(preceded(
-        char('?'),
-        cut(terminated(
-            take_till(|c| !is_terminal_character(c) || c == '?'),
+    map(
+        preceded(
             char('?'),
-        )),
-    ), |s: &str| -> Term {
-        Term::Special(s.to_owned())
-    })(i)
+            cut(terminated(
+                take_till(|c| !is_terminal_character(c) || c == '?'),
+                char('?'),
+            )),
+        ),
+        |s: &str| -> Term { Term::Special(s.to_owned()) },
+    )(i)
 }
 
 /// Parses a terminal string from ISO/IEC 14977, which is a non-zero sequence of
@@ -192,52 +194,64 @@ pub fn terminal_string<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
         bytes::complete::take_till1,
         character::complete::char,
         combinator::cut,
-        sequence::{preceded, terminated},
         combinator::map,
+        sequence::{preceded, terminated},
     };
 
-    map(alt((
-        preceded(
-            char('\''),
-            cut(terminated(
-                take_till1(|c| !is_terminal_character(c) || c == '\''),
+    map(
+        alt((
+            preceded(
                 char('\''),
-            )),
-        ),
-        preceded(
-            char('"'),
-            cut(terminated(
-                take_till1(|c| !is_terminal_character(c) || c == '"'),
+                cut(terminated(
+                    take_till1(|c| !is_terminal_character(c) || c == '\''),
+                    char('\''),
+                )),
+            ),
+            preceded(
                 char('"'),
-            )),
-        ),
-    )), |s: &str| -> Term {
-        Term::Terminal(s.to_owned())
-    })(i)
+                cut(terminated(
+                    take_till1(|c| !is_terminal_character(c) || c == '"'),
+                    char('"'),
+                )),
+            ),
+        )),
+        |s: &str| -> Term { Term::Terminal(s.to_owned()) },
+    )(i)
 }
 
 pub fn grouped_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{character::complete::char, combinator::map, sequence::delimited};
 
-    map(delimited(char('('), definitions_list, char(')')), |e: Vec<Expression>| -> Term {
-        Term::Grouped(e)
-    })(i)
+    map(
+        delimited(char('('), definitions_list, char(')')),
+        |e: Vec<Expression>| -> Term { Term::Grouped(e) },
+    )(i)
 }
 
 pub fn repeated_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
 
-    map(delimited(alt((tag("{"), tag("(:"))), definitions_list, alt((tag("}"), tag(":)")))), |e: Vec<Expression>| -> Term {
-        Term::Repeated(e)
-    })(i)
+    map(
+        delimited(
+            alt((tag("{"), tag("(:"))),
+            definitions_list,
+            alt((tag("}"), tag(":)"))),
+        ),
+        |e: Vec<Expression>| -> Term { Term::Repeated(e) },
+    )(i)
 }
 
 pub fn optional_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
 
-    map(delimited(alt((tag("["), tag("(/"))), definitions_list, alt((tag("]"), tag("/)")))), |e: Vec<Expression>| -> Term {
-        Term::Optional(e)
-    })(i)
+    map(
+        delimited(
+            alt((tag("["), tag("(/"))),
+            definitions_list,
+            alt((tag("]"), tag("/)"))),
+        ),
+        |e: Vec<Expression>| -> Term { Term::Optional(e) },
+    )(i)
 }
 
 pub fn syntactic_primary<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
@@ -265,9 +279,12 @@ pub fn syntactic_factor<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a s
     let (i, primary) = syntactic_primary(i)?;
     Ok(match number {
         None => (i, primary),
-        Some(n) => (i, Term::Grouped(vec![Expression {
-            terms: (0..n).map(|_| primary).collect()
-        }]))
+        Some(n) => (
+            i,
+            Term::Grouped(vec![Expression {
+                terms: (0..n).map(|_| primary.clone()).collect(),
+            }]),
+        ),
     })
 }
 
@@ -293,13 +310,18 @@ pub fn single_definition<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a 
 pub fn definitions_list<'a, E: ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, Vec<Expression>, E> {
-    use nom::{character::complete::one_of, combinator::{iterator, map}, multi::separated_list1};
+    use nom::{
+        character::complete::one_of,
+        combinator::{iterator, map},
+        multi::separated_list1,
+    };
 
-    let mut it = iterator(i, separated_list1(one_of("|/!"), single_definition));
-    let parsed = it.map(|t: Vec<Term>| -> Expression {
-        Expression { terms: t }
-    });
-    it.finish()?
+    // let mut it = iterator(i, separated_list1(one_of("|/!"), single_definition));
+    // let parsed = it.map(|t: Vec<Term>| -> Expression {
+    //     Expression { terms: t }
+    // });
+    // it.finish()?;
+    unimplemented!()
     // map(
     //     separated_list1(one_of("|/!"), single_definition),
     //     |t: Vec<Vec<Term>>| -> Vec<Expression> {
@@ -310,32 +332,46 @@ pub fn definitions_list<'a, E: ParseError<&'a str>>(
     // )(i)
 }
 
-pub fn syntax_rule<'a, E: ParseError<&'a str>>(
-    i: &'a str,
-) -> IResult<&'a str, Production, E> {
+pub fn syntax_rule<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Production, E> {
     use nom::character::complete::{char, one_of};
 
     let (i, identifier) = meta_identifier(i)?;
     let (i, _) = char('=')(i)?;
     let (i, definitions) = definitions_list(i)?;
     let (i, _) = one_of(";.")(i)?;
-    Ok((i, Production {
-        lhs: match identifier {
-            Term::Nonterminal(ident) => ident,
-            _ => unreachable!()
+    Ok((
+        i,
+        Production {
+            lhs: match identifier {
+                Term::Nonterminal(ident) => ident,
+                _ => unreachable!(),
+            },
+            rhs: definitions,
         },
-        rhs: definitions,
-    }))
+    ))
 }
 
 pub fn syntax<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Grammar, E> {
     use nom::{combinator::map, multi::many1};
 
     map(many1(syntax_rule), |p: Vec<Production>| -> Grammar {
-        Grammar {
-            productions: p,
-        }
+        Grammar { productions: p }
     })(i)
+}
+
+pub fn bracketed_textual_comment<'a, E: ParseError<&'a str>>(
+    i: &'a str,
+) -> IResult<&'a str, (), E> {
+    use nom::{
+        bytes::complete::{tag, take_until},
+        combinator::{cut, map},
+        sequence::{preceded, terminated},
+    };
+
+    map(
+        preceded(tag("(*"), cut(terminated(take_until("*)"), tag("*)")))),
+        |_| (),
+    )(i)
 }
 
 #[wasm_bindgen(js_name = getMessage)]
@@ -343,14 +379,17 @@ pub fn get_message() -> JsString {
     "world".to_owned().into()
 }
 
-#[wasm_bindgen(start)]
-pub fn main() -> Result<(), JsValue> {
+pub fn set_panic_hook() {
+    // When the `console_error_panic_hook` feature is enabled, we can call the
+    // `set_panic_hook` function at least once during initialization, and then
+    // we will get better error messages if the code ever panics.
     #[cfg(feature = "console_error_panic_hook")]
     console_error_panic_hook::set_once();
 }
 
 #[cfg(test)]
 mod tests {
+    use super::{Expression, Term};
     use nom::{
         error::ErrorKind,
         Err::{Error, Failure},
@@ -418,7 +457,7 @@ mod tests {
 
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("abc12"),
-            Ok(("", "abc12"))
+            Ok(("", Term::Nonterminal("abc12".to_owned())))
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("12abc"),
@@ -430,7 +469,7 @@ mod tests {
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("test abc"),
-            Ok((" abc", "test"))
+            Ok((" abc", Term::Nonterminal("test".to_owned())))
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("  test"),
@@ -438,7 +477,7 @@ mod tests {
         );
         assert_eq!(
             meta_identifier::<(&str, ErrorKind)>("藏京٣¾  abc"),
-            Ok(("  abc", "藏京٣¾"))
+            Ok(("  abc", Term::Nonterminal("藏京٣¾".to_owned())))
         );
     }
 
@@ -448,11 +487,11 @@ mod tests {
 
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("? anything really ?"),
-            Ok(("", " anything really "))
+            Ok(("", Term::Special(" anything really ".to_owned())))
         );
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("?藏!? abc"),
-            Ok((" abc", "藏!"))
+            Ok((" abc", Term::Special("藏!".to_owned())))
         );
         assert_eq!(
             special_sequence::<(&str, ErrorKind)>("? not closed"),
@@ -466,7 +505,10 @@ mod tests {
             special_sequence::<(&str, ErrorKind)>("? this has\na newline ?"),
             Err(Failure(("\na newline ?", ErrorKind::Char)))
         );
-        assert_eq!(special_sequence::<(&str, ErrorKind)>("??"), Ok(("", "")));
+        assert_eq!(
+            special_sequence::<(&str, ErrorKind)>("??"),
+            Ok(("", Term::Special("".to_owned())))
+        );
     }
 
     #[test]
@@ -475,11 +517,11 @@ mod tests {
 
         assert_eq!(
             terminal_string::<(&str, ErrorKind)>("'a string'"),
-            Ok(("", "a string"))
+            Ok(("", Term::Terminal("a string".to_owned())))
         );
         assert_eq!(
             terminal_string::<(&str, ErrorKind)>("\"some other string  \"abc"),
-            Ok(("abc", "some other string  "))
+            Ok(("abc", Term::Terminal("some other string  ".to_owned())))
         );
         assert_eq!(
             terminal_string::<(&str, ErrorKind)>("\"not closed"),
@@ -504,6 +546,56 @@ mod tests {
         assert_eq!(
             terminal_string::<(&str, ErrorKind)>("\"\""),
             Err(Failure(("\"", ErrorKind::TakeTill1)))
+        );
+    }
+
+    #[test]
+    fn test_syntactic_primary() {
+        use super::syntactic_primary;
+
+        assert_eq!(
+            syntactic_primary::<(&str, ErrorKind)>("'terminal'"),
+            Ok(("", Term::Terminal("terminal".to_owned())))
+        );
+        assert_eq!(
+            syntactic_primary::<(&str, ErrorKind)>("nonterminal"),
+            Ok(("", Term::Nonterminal("nonterminal".to_owned())))
+        );
+        assert_eq!(
+            syntactic_primary::<(&str, ErrorKind)>("? special ?"),
+            Ok(("", Term::Special(" special ".to_owned())))
+        );
+        assert_eq!(
+            syntactic_primary::<(&str, ErrorKind)>(""),
+            Ok(("", Term::Empty))
+        );
+    }
+
+    #[test]
+    fn test_syntactic_factor() {
+        use super::syntactic_factor;
+
+        assert_eq!(
+            syntactic_factor::<(&str, ErrorKind)>("2*'terminal'"),
+            Ok((
+                "",
+                Term::Grouped(vec![Expression {
+                    terms: vec![
+                        Term::Terminal("terminal".to_owned()),
+                        Term::Terminal("terminal".to_owned())
+                    ]
+                }])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_bracketed_textual_comment() {
+        use super::bracketed_textual_comment;
+
+        assert_eq!(
+            bracketed_textual_comment::<(&str, ErrorKind)>("(* comment *)"),
+            Ok(("", ()))
         );
     }
 }
