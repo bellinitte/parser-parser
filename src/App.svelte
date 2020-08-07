@@ -1,5 +1,12 @@
 <script>
     export let core;
+
+    let input = '';
+    let output = '';
+
+    function handleChange() {
+        output = core.parse(input);
+    }
 </script>
 
 <style>
@@ -8,4 +15,8 @@
     }
 </style>
 
-<h1>Hello {core.getMessage()}!</h1>
+<h1>Parser-parser</h1>
+
+<textarea bind:value={input} on:input={handleChange}></textarea>
+
+<p>{output}</p>

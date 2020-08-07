@@ -387,9 +387,10 @@ pub fn bracketed_textual_comment<'a, E: ParseError<&'a str>>(
     )(i)
 }
 
-#[wasm_bindgen(js_name = getMessage)]
-pub fn get_message() -> JsString {
-    "world".to_owned().into()
+#[wasm_bindgen]
+pub fn parse(input: JsString) -> JsString {
+    let i: String = input.into();
+    format!("{:?}", syntax::<()>(&i).ok().map(|(_, grammar)| grammar)).into()
 }
 
 pub fn set_panic_hook() {

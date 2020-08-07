@@ -45,7 +45,7 @@ export default {
         }),
 
         !production && serve(),
-        !production && livereload('public'),
+        !production && livereload('dist'),
         production && terser()
     ],
     watch: {
