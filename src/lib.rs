@@ -12,25 +12,27 @@ use nom::{
 
 pub mod error;
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Grammar {
     productions: Vec<Production>,
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Production {
     pub lhs: String,
     rhs: Vec<Expression>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Expression {
-    terms: Vec<Term>,
-}
+pub struct Expression(Vec<Term>);
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Term {
     Optional(Vec<Expression>),
     Repeated(Vec<Expression>),
     Grouped(Vec<Expression>),
+    Factor(usize, Box<Term>),
+    Exception(Box<Term>, Box<Term>),
     Nonterminal(String),
     Terminal(String),
     Special(String),
@@ -83,7 +85,7 @@ pub fn gap_separation<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str
 /// ```
 pub fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, usize, E> {
     use nom::{character::complete::digit1, combinator::map_res};
- 
+
     skipped(map_res(digit1, |s: &str| s.parse()))(i)
 }
 
@@ -124,7 +126,7 @@ pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a st
             Some((c, true)) => Ok((&i[c.len_utf8()..], c.len_utf8())),
             _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char))),
         }?;
-    
+
         match rest.find(|c: char| !c.is_alphanumeric()) {
             Some(pos) => Ok(i.take_split(pos + offset)),
             None => Ok(i.take_split(i.len())),
@@ -142,16 +144,18 @@ fn skip<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
     Ok((i, ()))
 }
 
-pub fn skipped<'a, O, E: ParseError<&'a str>, F>(mut f: F) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
+pub fn skipped<'a, O, E: ParseError<&'a str>, F>(
+    mut f: F,
+) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
 where
-  F: FnMut(&'a str) -> IResult<&'a str, O, E> + 'a,
+    F: FnMut(&'a str) -> IResult<&'a str, O, E> + 'a,
 {
-  move |i: &'a str| {
-    let (i, _) = skip(i)?;
-    let (i, res) = f(i)?;
-    let (i, _) = skip(i)?;
-    Ok((i, res))
-  }
+    move |i: &'a str| {
+        let (i, _) = skip(i)?;
+        let (i, res) = f(i)?;
+        let (i, _) = skip(i)?;
+        Ok((i, res))
+    }
 }
 
 /// Parses a special sequence from ISO/IEC 14977, which is any sequence
@@ -244,39 +248,39 @@ pub fn terminal_string<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&
     ))(i)
 }
 
-pub fn grouped_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn grouped_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{character::complete::char, combinator::map, sequence::delimited};
 
-    map(
+    skipped(map(
         delimited(char('('), definitions_list, char(')')),
         |e: Vec<Expression>| -> Term { Term::Grouped(e) },
-    )(i)
+    ))(i)
 }
 
-pub fn repeated_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn repeated_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
 
-    map(
+    skipped(map(
         delimited(
             alt((tag("{"), tag("(:"))),
             definitions_list,
             alt((tag("}"), tag(":)"))),
         ),
         |e: Vec<Expression>| -> Term { Term::Repeated(e) },
-    )(i)
+    ))(i)
 }
 
-pub fn optional_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn optional_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
 
-    map(
+    skipped(map(
         delimited(
             alt((tag("["), tag("(/"))),
             definitions_list,
             alt((tag("]"), tag("/)"))),
         ),
         |e: Vec<Expression>| -> Term { Term::Optional(e) },
-    )(i)
+    ))(i)
 }
 
 pub fn syntactic_primary<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
@@ -304,66 +308,49 @@ pub fn syntactic_factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<
     let (i, primary) = syntactic_primary(i)?;
     Ok(match number {
         None => (i, primary),
-        Some(n) => (
-            i,
-            Term::Grouped(vec![Expression {
-                terms: (0..n).map(|_| primary.clone()).collect(),
-            }]),
-        ),
+        Some(n) => (i, Term::Factor(n, Box::new(primary))),
     })
-}
-
-pub fn syntactic_exception<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
-    // TODO a syntactic-factor that could be replaced by a syntactic-factor containing no meta-identifiers
-    syntactic_factor(i)
 }
 
 pub fn syntactic_term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
     use nom::{character::complete::char, combinator::opt, sequence::preceded};
 
     let (i, factor) = syntactic_factor(i)?;
-    let (i, exception) = opt(preceded(char('-'), syntactic_exception))(i)?;
-    Ok((i, factor))
+    // TODO a syntactic-factor that could be replaced by a syntactic-factor containing no meta-identifiers
+    let (i, exception) = opt(preceded(char('-'), syntactic_factor))(i)?;
+    Ok(match exception {
+        None => (i, factor),
+        Some(ex) => (i, Term::Exception(Box::new(factor), Box::new(ex))),
+    })
 }
 
-pub fn single_definition<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Vec<Term>, E> {
-    use nom::{character::complete::char, multi::separated_list1};
+pub fn single_definition<'a, E: ParseError<&'a str> + 'a>(
+    i: &'a str,
+) -> IResult<&'a str, Expression, E> {
+    use nom::{character::complete::char, combinator::map, multi::separated_list1};
 
-    separated_list1(char(','), syntactic_term)(i)
+    map(
+        separated_list1(char(','), syntactic_term),
+        |t: Vec<Term>| -> Expression { Expression(t) },
+    )(i)
 }
 
-pub fn definitions_list<'a, E: ParseError<&'a str>>(
+pub fn definitions_list<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Vec<Expression>, E> {
-    use nom::{
-        character::complete::one_of,
-        combinator::{iterator, map},
-        multi::separated_list1,
-    };
+    use nom::{character::complete::one_of, multi::separated_list1};
 
-    // let mut it = iterator(i, separated_list1(one_of("|/!"), single_definition));
-    // let parsed = it.map(|t: Vec<Term>| -> Expression {
-    //     Expression { terms: t }
-    // });
-    // it.finish()?;
-    unimplemented!()
-    // map(
-    //     separated_list1(one_of("|/!"), single_definition),
-    //     |t: Vec<Vec<Term>>| -> Vec<Expression> {
-    //         t.iter()
-    //             .map(|s: &Vec<Term>| -> Expression { Expression { terms: *s } })
-    //             .collect()
-    //     },
-    // )(i)
+    separated_list1(one_of("|/!"), single_definition)(i)
 }
 
-pub fn syntax_rule<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Production, E> {
+pub fn syntax_rule<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Production, E> {
     use nom::character::complete::{char, one_of};
 
     let (i, identifier) = meta_identifier(i)?;
     let (i, _) = char('=')(i)?;
     let (i, definitions) = definitions_list(i)?;
     let (i, _) = one_of(";.")(i)?;
+    let (i, _) = skip(i)?;
     Ok((
         i,
         Production {
@@ -376,7 +363,7 @@ pub fn syntax_rule<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, P
     ))
 }
 
-pub fn syntax<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Grammar, E> {
+pub fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
     use nom::{combinator::map, multi::many1};
 
     map(many1(syntax_rule), |p: Vec<Production>| -> Grammar {
@@ -415,7 +402,7 @@ pub fn set_panic_hook() {
 
 #[cfg(test)]
 mod tests {
-    use super::{Expression, Term};
+    use super::{Expression, Grammar, Production, Term};
     use nom::{
         error::ErrorKind,
         Err::{Error, Failure},
@@ -643,16 +630,22 @@ mod tests {
         use super::syntactic_factor;
 
         assert_eq!(
-            syntactic_factor::<(&str, ErrorKind)>("2*'terminal'"),
+            syntactic_factor::<(&str, ErrorKind)>("2 * 'terminal'"),
             Ok((
                 "",
-                Term::Grouped(vec![Expression {
-                    terms: vec![
-                        Term::Terminal("terminal".to_owned()),
-                        Term::Terminal("terminal".to_owned())
-                    ]
-                }])
+                Term::Factor(2, Box::new(Term::Terminal("terminal".to_owned())))
             ))
+        );
+        assert_eq!(
+            syntactic_factor::<(&str, ErrorKind)>(" 3* a "),
+            Ok((
+                "",
+                Term::Factor(3, Box::new(Term::Nonterminal("a".to_owned())))
+            ))
+        );
+        assert_eq!(
+            syntactic_factor::<(&str, ErrorKind)>(" 3 b "),
+            Ok((" 3 b ", Term::Empty))
         );
     }
 
@@ -663,6 +656,189 @@ mod tests {
         assert_eq!(
             bracketed_textual_comment::<(&str, ErrorKind)>("(* comment *)"),
             Ok(("", ()))
+        );
+    }
+
+    #[test]
+    fn test_syntactic_term() {
+        use super::syntactic_term;
+
+        assert_eq!(
+            syntactic_term::<(&str, ErrorKind)>("abc - 'test'"),
+            Ok((
+                "",
+                Term::Exception(
+                    Box::new(Term::Nonterminal("abc".to_owned())),
+                    Box::new(Term::Terminal("test".to_owned()))
+                )
+            ))
+        );
+        assert_eq!(
+            syntactic_term::<(&str, ErrorKind)>("a-b-c"),
+            Ok((
+                "-c",
+                Term::Exception(
+                    Box::new(Term::Nonterminal("a".to_owned())),
+                    Box::new(Term::Nonterminal("b".to_owned()))
+                )
+            ))
+        );
+    }
+
+    #[test]
+    fn test_single_definition() {
+        use super::single_definition;
+
+        assert_eq!(
+            single_definition::<(&str, ErrorKind)>("abc, 'test', bca"),
+            Ok((
+                "",
+                Expression(vec![
+                    Term::Nonterminal("abc".to_owned()),
+                    Term::Terminal("test".to_owned()),
+                    Term::Nonterminal("bca".to_owned())
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_definitions_list() {
+        use super::definitions_list;
+
+        assert_eq!(
+            definitions_list::<(&str, ErrorKind)>(" a, 'b' | 'c', d "),
+            Ok((
+                "",
+                vec![
+                    Expression(vec![
+                        Term::Nonterminal("a".to_owned()),
+                        Term::Terminal("b".to_owned())
+                    ]),
+                    Expression(vec![
+                        Term::Terminal("c".to_owned()),
+                        Term::Nonterminal("d".to_owned())
+                    ])
+                ]
+            ))
+        );
+    }
+
+    #[test]
+    fn test_grouped_sequence() {
+        use super::grouped_sequence;
+
+        assert_eq!(
+            grouped_sequence::<(&str, ErrorKind)>("(b | c)"),
+            Ok((
+                "",
+                Term::Grouped(vec![
+                    Expression(vec![Term::Nonterminal("b".to_owned())]),
+                    Expression(vec![Term::Nonterminal("c".to_owned())])
+                ])
+            ))
+        );
+        assert_eq!(
+            grouped_sequence::<(&str, ErrorKind)>("( a, 'b' (* comment *) | c )"),
+            Ok((
+                "",
+                Term::Grouped(vec![
+                    Expression(vec![
+                        Term::Nonterminal("a".to_owned()),
+                        Term::Terminal("b".to_owned())
+                    ]),
+                    Expression(vec![Term::Nonterminal("c".to_owned())])
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_repeated_sequence() {
+        use super::repeated_sequence;
+
+        assert_eq!(
+            repeated_sequence::<(&str, ErrorKind)>("{abc (**) |def}"),
+            Ok((
+                "",
+                Term::Repeated(vec![
+                    Expression(vec![Term::Nonterminal("abc".to_owned())]),
+                    Expression(vec![Term::Nonterminal("def".to_owned())])
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_optional_sequence() {
+        use super::optional_sequence;
+
+        assert_eq!(
+            optional_sequence::<(&str, ErrorKind)>("[ abc|def (*test*) ]"),
+            Ok((
+                "",
+                Term::Optional(vec![
+                    Expression(vec![Term::Nonterminal("abc".to_owned())]),
+                    Expression(vec![Term::Nonterminal("def".to_owned())])
+                ])
+            ))
+        );
+    }
+
+    #[test]
+    fn test_syntax_rule() {
+        use super::syntax_rule;
+
+        assert_eq!(
+            syntax_rule::<(&str, ErrorKind)>("abc = 'a', (b | 'c' (* test *)); "),
+            Ok((
+                "",
+                Production {
+                    lhs: "abc".to_owned(),
+                    rhs: vec![Expression(vec![
+                        Term::Terminal("a".to_owned()),
+                        Term::Grouped(vec![
+                            Expression(vec![Term::Nonterminal("b".to_owned())]),
+                            Expression(vec![Term::Terminal("c".to_owned())])
+                        ])
+                    ])]
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_syntax() {
+        use super::syntax;
+
+        assert_eq!(
+            syntax::<(&str, ErrorKind)>("a = 'd' | {2 * 'e'}; (* test *)\nb = 'a', (a | 'c');\n"),
+            Ok((
+                "",
+                Grammar {
+                    productions: vec![
+                        Production {
+                            lhs: "a".to_owned(),
+                            rhs: vec![
+                                Expression(vec![Term::Terminal("d".to_owned())]),
+                                Expression(vec![Term::Repeated(vec![Expression(vec![
+                                    Term::Factor(2, Box::new(Term::Terminal("e".to_owned())))
+                                ])])])
+                            ]
+                        },
+                        Production {
+                            lhs: "b".to_owned(),
+                            rhs: vec![Expression(vec![
+                                Term::Terminal("a".to_owned()),
+                                Term::Grouped(vec![
+                                    Expression(vec![Term::Nonterminal("a".to_owned())]),
+                                    Expression(vec![Term::Terminal("c".to_owned())])
+                                ])
+                            ])]
+                        }
+                    ]
+                }
+            ))
         );
     }
 }
