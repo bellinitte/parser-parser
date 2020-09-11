@@ -1,7 +1,9 @@
 <script>
+    import Editor from './editor/Editor.svelte';
+
     export let core;
 
-    let input = '';
+    let input = '<span number>128</span>';
     let output = '';
 
     function handleChange() {
@@ -17,6 +19,8 @@
 
 <h1>Parser-parser</h1>
 
-<textarea bind:value={input} on:input={handleChange}></textarea>
+<Editor />
 
-<p>{output}</p>
+<!-- <textarea bind:value={input} on:input={handleChange}></textarea> -->
+
+<!-- <p>{output}</p> -->

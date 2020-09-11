@@ -7,6 +7,7 @@ import wasm from "@wasm-tool/rollup-plugin-rust";
 import copy from 'rollup-plugin-copy';
 import alias from '@rollup/plugin-alias';
 import serve from './scripts/serve';
+import css from "rollup-plugin-css-only";
 
 const production = !process.env.ROLLUP_WATCH;
 
@@ -21,6 +22,9 @@ export default {
         sourcemap: !production
     },
     plugins: [
+        css({
+            output: "dist/extra.css"
+        }),
         copy({
             targets: [
                 { src: 'public/*', dest: 'dist' }
