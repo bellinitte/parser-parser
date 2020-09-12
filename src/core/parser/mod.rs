@@ -1,6 +1,8 @@
+// TODO decide what to do about the fact that a terminal can contain a newline vs a space.
+
 use nom::{
     error::{ErrorKind, ParseError},
-    AsChar, FindToken, IResult, InputTake, InputTakeAtPosition,
+    IResult, InputTakeAtPosition,
 };
 
 pub mod error;
@@ -12,61 +14,36 @@ pub struct Grammar {
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Production {
-    pub lhs: String,
-    rhs: Vec<Expression>,
+    lhs: String,
+    rhs: Expression,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Expression(Vec<Term>);
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Term {
-    Optional(Vec<Expression>),
-    Repeated(Vec<Expression>),
-    Grouped(Vec<Expression>),
-    Factor(usize, Box<Term>),
-    Exception(Box<Term>, Box<Term>),
+pub enum Expression {
+    Alternative {
+        first: Box<Expression>,
+        second: Box<Expression>,
+        rest: Vec<Expression>,
+    },
+    Sequence {
+        first: Box<Expression>,
+        second: Box<Expression>,
+        rest: Vec<Expression>,
+    },
+    Optional(Box<Expression>),
+    Repeated(Box<Expression>),
+    Factor {
+        count: usize,
+        primary: Box<Expression>
+    },
+    Exception {
+        subject: Box<Expression>,
+        restriction: Box<Expression>
+    },
     Nonterminal(String),
     Terminal(String),
     Special(String),
     Empty,
-}
-
-/// Parses a '{gap separator}' from ISO/IEC 14977, which is a possibly empty sequence of
-/// 'gap separators' defined as
-/// ```ebnf
-/// gap separator
-///   = space character
-///   | horizontal_tabulation character
-///   | new line
-///   | vertical tabulation character
-///   | form feed;
-/// ```
-/// where a new line is a line feed surrounded by possibly empty sequences of carriage returns.
-///
-/// # Example
-///
-/// ```rust
-/// assert_eq!(
-///     gap_separation::<(&str, ErrorKind)>("   \t\t  test  "),
-///     Ok(("test  ", ()))
-/// );
-/// ```
-pub fn gap_separation<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
-    let newline: bool = i.find_token('\n');
-    match i.split_at_position_complete(|item| {
-        let c = item.clone().as_char();
-        !(c == ' '
-            || c == '\t'
-            || c == '\x0b'
-            || c == '\x0c'
-            || (newline && (c == '\n' || c == '\r'))) // We are doing a newline check for every
-                                                      // character, TODO split this into
-                                                      // two separate closures
-    }) {
-        Ok((rest, _)) => Ok((rest, ())),
-        Err(e) => Err(e),
-    }
 }
 
 /// Parses a non-zero sequence of decimal digits and returns a usize represented by that sequence.
@@ -77,13 +54,37 @@ pub fn gap_separation<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str
 /// assert_eq!(integer::<(&str, ErrorKind)>("123"), Ok(("", 123)));
 /// ```
 pub fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, usize, E> {
-    use nom::{character::complete::digit1, combinator::map_res};
+    let mut chars = i.chars();
+    let mut offset = 0;
+    let mut integer: usize = 0;
 
-    skipped(map_res(digit1, |s: &str| s.parse()))(i)
-}
+    match chars.next() {
+        Some(c) if c.is_digit(10) => {
+            integer = c.to_digit(10).unwrap() as usize;
+            offset += c.len_utf8();
+        },
+        _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char)))?,
+    };
 
-pub fn is_terminal_character(i: char) -> bool {
-    !i.is_control()
+    let mut last_whitespace_offset = 0;
+
+    loop {
+        match chars.next() {
+            Some(c) if c.is_digit(10) => {
+                integer *= 10;
+                integer += c.to_digit(10).unwrap() as usize;
+                offset += last_whitespace_offset;
+                last_whitespace_offset = 0;
+                offset += c.len_utf8();
+            },
+            Some(c) if c.is_whitespace() => {
+                last_whitespace_offset += c.len_utf8();
+            },
+            _ => break,
+        };
+    }
+
+    Ok((&i[offset..], integer))
 }
 
 /// Parses a meta identifier from ISO/IEC 14977, which is a letter followed by a possibly empty
@@ -108,46 +109,76 @@ pub fn is_terminal_character(i: char) -> bool {
 ///     Ok((" abc", "test2"))
 /// );
 /// ```
-pub fn meta_identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
-    let (i, _) = skip(i)?;
+pub fn identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
+    let mut chars = i.chars();
+    let mut offset = 0;
+    let mut identifier: String = String::new();
 
-    skipped(|i| {
-        let (rest, offset) = match i.chars().next().map(|c| {
-            let b = c.is_alphabetic();
-            (c, b)
-        }) {
-            Some((c, true)) => Ok((&i[c.len_utf8()..], c.len_utf8())),
-            _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char))),
-        }?;
+    match chars.next() {
+        Some(c) if c.is_alphabetic() => {
+            identifier.push(c);
+            offset += c.len_utf8();
+        },
+        _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char)))?,
+    };
 
-        match rest.find(|c: char| !c.is_alphanumeric()) {
-            Some(pos) => Ok(i.take_split(pos + offset)),
-            None => Ok(i.take_split(i.len())),
-        }
-        .map(|(i, ident)| -> (&str, Term) { (i, Term::Nonterminal(ident.to_owned())) })
-    })(i)
+    let mut last_whitespace_offset = 0;
+
+    loop {
+        match chars.next() {
+            Some(c) if c.is_alphanumeric() => {
+                identifier.push(c);
+                offset += last_whitespace_offset;
+                last_whitespace_offset = 0;
+                offset += c.len_utf8();
+            },
+            Some(c) if c.is_whitespace() => {
+                last_whitespace_offset += c.len_utf8();
+            },
+            _ => break,
+        };
+    }
+
+    Ok((&i[offset..], identifier))
 }
 
-fn skip<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
+/// Parses a '{gap separator}' from ISO/IEC 14977, which is a possibly empty sequence of
+/// 'gap separators' defined as
+/// ```ebnf
+/// gap separator
+///   = space character
+///   | horizontal_tabulation character
+///   | new line
+///   | vertical tabulation character
+///   | form feed;
+/// ```
+/// where a new line is a line feed surrounded by possibly empty sequences of carriage returns.
+///
+/// # Example
+///
+/// ```rust
+/// assert_eq!(
+///     gap_separation::<(&str, ErrorKind)>("   \t\t  test  "),
+///     Ok(("test  ", ()))
+/// );
+/// ```
+fn optional_gap<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), E> {
     use nom::combinator::opt;
 
-    let (i, _) = gap_separation(i)?;
-    let (i, _) = opt(bracketed_textual_comment)(i)?;
-    let (i, _) = gap_separation(i)?;
-    Ok((i, ()))
-}
+    let (i, _) = i.split_at_position_complete(|c| !c.is_whitespace())?;
+    let mut j = i;
 
-pub fn skipped<'a, O, E: ParseError<&'a str>, F>(
-    mut f: F,
-) -> impl FnMut(&'a str) -> IResult<&'a str, O, E>
-where
-    F: FnMut(&'a str) -> IResult<&'a str, O, E> + 'a,
-{
-    move |i: &'a str| {
-        let (i, _) = skip(i)?;
-        let (i, res) = f(i)?;
-        let (i, _) = skip(i)?;
-        Ok((i, res))
+    loop {
+        let i = match opt(comment)(j)? {
+            (i, Some(_)) => {
+                i
+            },
+            (i, None) => {
+                return Ok((i, ()));
+            },
+        };
+        let (i, _) = i.split_at_position_complete(|c| !c.is_whitespace())?;
+        j = i;
     }
 }
 
@@ -171,24 +202,40 @@ where
 ///     Ok(("", " anything really "))
 /// );
 /// ```
-pub fn special_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
-    use nom::{
-        bytes::complete::take_till,
-        character::complete::char,
-        combinator::{cut, map},
-        sequence::{preceded, terminated},
+pub fn special<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    let mut chars = i.chars();
+    let mut offset = 0;
+    let mut sequence: String = String::new();
+
+    match chars.next() {
+        Some(c) if c == '?' => {
+            offset += c.len_utf8();
+        },
+        _ => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char)))?,
     };
 
-    skipped(map(
-        preceded(
-            char('?'),
-            cut(terminated(
-                take_till(|c| !is_terminal_character(c) || c == '?'),
-                char('?'),
-            )),
-        ),
-        |s: &str| -> Term { Term::Special(s.to_owned()) },
-    ))(i)
+    let mut last_whitespace_offset = 0;
+
+    loop {
+        match chars.next() {
+            Some(c) if c == '?' => {
+                offset += last_whitespace_offset;
+                offset += c.len_utf8();
+                let term = Expression::Special(sequence);
+                return Ok((&i[offset..], term));
+            },
+            Some(c) if c.is_whitespace() => {
+                last_whitespace_offset += c.len_utf8();
+            },
+            Some(c) if !c.is_control() => {
+                sequence.push(c);
+                offset += last_whitespace_offset;
+                last_whitespace_offset = 0;
+                offset += c.len_utf8();
+            },
+            _ => Err(nom::Err::Failure(E::from_error_kind(&i[offset..], ErrorKind::Char)))?,
+        };
+    }
 }
 
 /// Parses a terminal string from ISO/IEC 14977, which is a non-zero sequence of
@@ -210,7 +257,7 @@ pub fn special_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<
 /// # Example
 ///
 ///
-pub fn terminal_string<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn terminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{
         branch::alt,
         bytes::complete::take_till1,
@@ -220,137 +267,181 @@ pub fn terminal_string<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&
         sequence::{preceded, terminated},
     };
 
-    skipped(map(
+    map(
         alt((
             preceded(
                 char('\''),
                 cut(terminated(
-                    take_till1(|c| !is_terminal_character(c) || c == '\''),
+                    take_till1(|c: char| c.is_control() || c == '\''),
                     char('\''),
                 )),
             ),
             preceded(
                 char('"'),
                 cut(terminated(
-                    take_till1(|c| !is_terminal_character(c) || c == '"'),
+                    take_till1(|c: char| c.is_control() || c == '"'),
                     char('"'),
                 )),
             ),
         )),
-        |s: &str| -> Term { Term::Terminal(s.to_owned()) },
-    ))(i)
+        |s: &str| Expression::Terminal(s.to_owned()),
+    )(i)
 }
 
-pub fn grouped_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
-    use nom::{character::complete::char, combinator::map, sequence::delimited};
+pub fn nonterminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    use nom::combinator::map;
 
-    skipped(map(
-        delimited(char('('), definitions_list, char(')')),
-        |e: Vec<Expression>| -> Term { Term::Grouped(e) },
-    ))(i)
+    map(
+        identifier,
+        |s| Expression::Nonterminal(s),
+    )(i)
 }
 
-pub fn repeated_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn grouped<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    use nom::{character::complete::char, sequence::delimited};
+
+    delimited(char('('), alternative, char(')'))(i)
+}
+
+pub fn repeated<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
-
-    skipped(map(
+    
+    map(
         delimited(
             alt((tag("{"), tag("(:"))),
-            definitions_list,
+            alternative,
             alt((tag("}"), tag(":)"))),
         ),
-        |e: Vec<Expression>| -> Term { Term::Repeated(e) },
-    ))(i)
+        |e| Expression::Repeated(Box::new(e))
+    )(i)
 }
 
-pub fn optional_sequence<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn optional<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
-
-    skipped(map(
+    
+    map(
         delimited(
             alt((tag("["), tag("(/"))),
-            definitions_list,
+            alternative,
             alt((tag("]"), tag("/)"))),
         ),
-        |e: Vec<Expression>| -> Term { Term::Optional(e) },
-    ))(i)
+        |e| Expression::Optional(Box::new(e))
+    )(i)
 }
 
-pub fn syntactic_primary<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
-    use nom::branch::alt;
+pub fn factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    use nom::{branch::alt, character::complete::char, combinator::{map, opt}};
 
-    alt((
-        optional_sequence,
-        repeated_sequence,
-        grouped_sequence,
-        meta_identifier,
-        terminal_string,
-        special_sequence,
-        empty_sequence,
-    ))(i)
+    let (i, count) = opt(|i: &'a str| -> IResult<&'a str, usize, E> {
+        let (i, _) = optional_gap(i)?;
+        let (i, integer) = integer(i)?;
+        let (i, _) = optional_gap(i)?;
+        let (i, _) = char('*')(i)?;
+        Ok((i, integer))
+    })(i)?;
+
+    let (i, _) = optional_gap(i)?;
+
+    let (i, expression) = map(
+        alt((
+            optional,
+            repeated,
+            grouped,
+            nonterminal,
+            terminal,
+            special,
+            empty,
+        )),
+        move |e| match count {
+            Some(0) => Expression::Empty,
+            Some(i) if i > 1 => Expression::Factor {
+                count: i,
+                primary: Box::new(e),
+            },
+            _ => e,
+        }
+    )(i)?;
+
+    let (i, _) = optional_gap(i)?;
+
+    Ok((i, expression))
 }
 
-pub fn empty_sequence<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Term, E> {
-    Ok((i, Term::Empty))
+pub fn empty<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Expression, E> {
+    Ok((i, Expression::Empty))
 }
 
-pub fn syntactic_factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
-    use nom::{character::complete::char, combinator::opt, sequence::terminated};
-
-    let (i, number): (&str, Option<usize>) = opt(terminated(integer, char('*')))(i)?;
-    let (i, primary) = syntactic_primary(i)?;
-    Ok(match number {
-        None => (i, primary),
-        Some(n) => (i, Term::Factor(n, Box::new(primary))),
-    })
-}
-
-pub fn syntactic_term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Term, E> {
+pub fn term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::char, combinator::opt, sequence::preceded};
 
-    let (i, factor) = syntactic_factor(i)?;
+    let (i, primary) = factor(i)?;
     // TODO a syntactic-factor that could be replaced by a syntactic-factor containing no meta-identifiers
-    let (i, exception) = opt(preceded(char('-'), syntactic_factor))(i)?;
+    let (i, exception) = opt(preceded(char('-'), factor))(i)?;
     Ok(match exception {
-        None => (i, factor),
-        Some(ex) => (i, Term::Exception(Box::new(factor), Box::new(ex))),
+        None => (i, primary),
+        Some(ex) => (i, Expression::Exception {
+            subject: Box::new(primary),
+            restriction: Box::new(ex)
+        }),
     })
 }
 
-pub fn single_definition<'a, E: ParseError<&'a str> + 'a>(
+pub fn sequence<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::char, combinator::map, multi::separated_list1};
 
     map(
-        separated_list1(char(','), syntactic_term),
-        |t: Vec<Term>| -> Expression { Expression(t) },
+        separated_list1(char(','), term),
+        |expressions: Vec<Expression>| {
+            assert!(expressions.len() > 0);
+            match expressions.len() {
+                1 => expressions[0].clone(),
+                _ => Expression::Sequence {
+                    first: Box::new(expressions[0].clone()),
+                    second: Box::new(expressions[1].clone()),
+                    rest: expressions[2..].to_vec(),
+                },
+            }
+        },
     )(i)
 }
 
-pub fn definitions_list<'a, E: ParseError<&'a str> + 'a>(
+pub fn alternative<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
-) -> IResult<&'a str, Vec<Expression>, E> {
-    use nom::{character::complete::one_of, multi::separated_list1};
+) -> IResult<&'a str, Expression, E> {
+    use nom::{character::complete::one_of, combinator::map, multi::separated_list1};
 
-    separated_list1(one_of("|/!"), single_definition)(i)
+    map(
+        separated_list1(one_of("|/!"), sequence),
+        |expressions: Vec<Expression>| {
+            assert!(expressions.len() > 0);
+            match expressions.len() {
+                1 => expressions[0].clone(),
+                _ => Expression::Alternative {
+                    first: Box::new(expressions[0].clone()),
+                    second: Box::new(expressions[1].clone()),
+                    rest: expressions[2..].to_vec(),
+                },
+            }
+        },
+    )(i)
 }
 
-pub fn syntax_rule<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Production, E> {
+pub fn production<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Production, E> {
     use nom::character::complete::{char, one_of};
 
-    let (i, identifier) = meta_identifier(i)?;
+    let (i, _) = optional_gap(i)?;
+    let (i, identifier) = identifier(i)?;
+    let (i, _) = optional_gap(i)?;
     let (i, _) = char('=')(i)?;
-    let (i, definitions) = definitions_list(i)?;
+    let (i, definitions) = alternative(i)?;
     let (i, _) = one_of(";.")(i)?;
-    let (i, _) = skip(i)?;
+    let (i, _) = optional_gap(i)?;
     Ok((
         i,
         Production {
-            lhs: match identifier {
-                Term::Nonterminal(ident) => ident,
-                _ => unreachable!(),
-            },
+            lhs: identifier,
             rhs: definitions,
         },
     ))
@@ -359,75 +450,72 @@ pub fn syntax_rule<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a s
 pub fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
     use nom::{combinator::map, multi::many1};
 
-    map(many1(syntax_rule), |p: Vec<Production>| -> Grammar {
+    map(many1(production), |p: Vec<Production>| -> Grammar {
         Grammar { productions: p }
     })(i)
 }
 
-pub fn bracketed_textual_comment<'a, E: ParseError<&'a str>>(
+pub fn comment<'a, E: ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, (), E> {
     use nom::{
-        bytes::complete::{tag, take_until},
-        combinator::{cut, map},
-        sequence::{preceded, terminated},
+        bytes::complete::tag,
+        combinator::opt,
     };
 
-    // TODO allow only terminal_characters inside the comment (along with the whitespace)
-    map(
-        preceded(tag("(*"), cut(terminated(take_until("*)"), tag("*)")))),
-        |_| (),
-    )(i)
+    let (i, _) = tag("(*")(i)?;
+    let mut j = i;
+    
+    loop {
+        let (i, _) = opt(comment)(j)?;
+        if let (i, Some(_)) = opt(tag("*)"))(i)? {
+            return Ok((i, ()));
+        };
+        let i = match i.chars().next() {
+            Some(c) if !c.is_control() => {
+                &i[c.len_utf8()..]
+            },
+            Some(_) => Err(nom::Err::Error(E::from_error_kind(i, ErrorKind::Char)))?,
+            None => Err(nom::Err::Failure(E::from_error_kind(i, ErrorKind::Char)))?,
+        };
+        j = i;
+    }
 }
 
 #[cfg(test)]
 mod tests {
-    use super::{Expression, Grammar, Production, Term};
+    use super::{Expression, Grammar, Production};
     use nom::{
         error::ErrorKind,
         Err::{Error, Failure},
     };
 
     #[test]
-    fn test_terminal_characters() {
-        use super::is_terminal_character;
-
-        for i in 0..32 {
-            assert!(!is_terminal_character(std::char::from_u32(i).unwrap()));
-        }
-        for i in 32..127 {
-            assert!(is_terminal_character(std::char::from_u32(i).unwrap()));
-        }
-        for i in 127..160 {
-            assert!(!is_terminal_character(std::char::from_u32(i).unwrap()));
-        }
-        for i in 160..4096 {
-            assert!(is_terminal_character(std::char::from_u32(i).unwrap()));
-        }
-    }
-
-    #[test]
-    fn test_gap_separations() {
-        use super::gap_separation;
+    fn test_optional_gaps() {
+        use super::optional_gap;
 
         assert_eq!(
-            gap_separation::<(&str, ErrorKind)>("   \t\t  test  "),
+            optional_gap::<(&str, ErrorKind)>("   \t\t  test  "),
             Ok(("test  ", ()))
         );
         assert_eq!(
-            gap_separation::<(&str, ErrorKind)>("   \r "),
-            Ok(("\r ", ()))
-        );
-        assert_eq!(
-            gap_separation::<(&str, ErrorKind)>("  \r\n\r\r"),
+            optional_gap::<(&str, ErrorKind)>("   \r "),
             Ok(("", ()))
         );
         assert_eq!(
-            gap_separation::<(&str, ErrorKind)>("\x0c\x0b"),
+            optional_gap::<(&str, ErrorKind)>("  \r\n\r\r"),
             Ok(("", ()))
         );
         assert_eq!(
-            gap_separation::<(&str, ErrorKind)>("test  "),
+            optional_gap::<(&str, ErrorKind)>("\x0c\x0b"),
+            Ok(("", ()))
+        );
+        assert_eq!(
+            optional_gap::<(&str, ErrorKind)>("test  "),
+            Ok(("test  ", ()))
+        );
+        assert_eq!(
+            optional_gap::<(&str, ErrorKind)>("  (* comment *) test  "),
             Ok(("test  ", ()))
         );
     }
@@ -437,358 +525,363 @@ mod tests {
         use super::integer;
 
         assert_eq!(integer::<(&str, ErrorKind)>("123"), Ok(("", 123)));
+        assert_eq!(integer::<(&str, ErrorKind)>("12 3"), Ok(("", 123)));
+        assert_eq!(integer::<(&str, ErrorKind)>("12 a"), Ok((" a", 12)));
         assert_eq!(integer::<(&str, ErrorKind)>("012test"), Ok(("test", 12)));
         assert_eq!(
             integer::<(&str, ErrorKind)>("test"),
-            Err(Error(("test", ErrorKind::Digit)))
+            Err(Error(("test", ErrorKind::Char)))
         );
-        // Skips
-        assert_eq!(integer::<(&str, ErrorKind)>("  123 "), Ok(("", 123)));
-        assert_eq!(integer::<(&str, ErrorKind)>("(**)56 (**)"), Ok(("", 56)));
+        assert_eq!(integer::<(&str, ErrorKind)>("123  "), Ok(("  ", 123)));
+        assert_eq!(integer::<(&str, ErrorKind)>("1 2  3 "), Ok((" ", 123)));
     }
 
     #[test]
-    fn test_meta_identifiers() {
-        use super::meta_identifier;
+    fn test_identifiers() {
+        use super::identifier;
 
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("abc12"),
-            Ok(("", Term::Nonterminal("abc12".to_owned())))
+            identifier::<(&str, ErrorKind)>("abc12"),
+            Ok(("", "abc12".to_owned()))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("12abc"),
+            identifier::<(&str, ErrorKind)>("12abc"),
             Err(Error(("12abc", ErrorKind::Char)))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("_test"),
+            identifier::<(&str, ErrorKind)>("_test"),
             Err(Error(("_test", ErrorKind::Char)))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("test abc"),
-            Ok(("abc", Term::Nonterminal("test".to_owned())))
+            identifier::<(&str, ErrorKind)>("test abc"),
+            Ok(("", "testabc".to_owned()))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("藏京٣¾  abc"),
-            Ok(("abc", Term::Nonterminal("藏京٣¾".to_owned())))
-        );
-        // Skips
-        assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("  test"),
-            Ok(("", Term::Nonterminal("test".to_owned())))
+            identifier::<(&str, ErrorKind)>("藏京٣¾  abc"),
+            Ok(("", "藏京٣¾abc".to_owned()))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("  test  abc"),
-            Ok(("abc", Term::Nonterminal("test".to_owned())))
+            identifier::<(&str, ErrorKind)>("  test"),
+            Err(Error(("  test", ErrorKind::Char)))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("abc(* comment *)"),
-            Ok(("", Term::Nonterminal("abc".to_owned())))
+            identifier::<(&str, ErrorKind)>("  test  abc"),
+            Err(Error(("  test  abc", ErrorKind::Char)))
         );
         assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("(**)a(**)b"),
-            Ok(("b", Term::Nonterminal("a".to_owned())))
-        );
-        assert_eq!(
-            meta_identifier::<(&str, ErrorKind)>("  (**) a (**)  b"),
-            Ok(("b", Term::Nonterminal("a".to_owned())))
+            identifier::<(&str, ErrorKind)>("test  5 "),
+            Ok((" ", "test5".to_owned()))
         );
     }
 
     #[test]
-    fn test_special_sequences() {
-        use super::special_sequence;
+    fn test_specials() {
+        use super::special;
 
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("? anything really ?"),
-            Ok(("", Term::Special(" anything really ".to_owned())))
+            special::<(&str, ErrorKind)>("? anything really ?"),
+            Ok(("", Expression::Special("anythingreally".to_owned())))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("?藏!? abc"),
-            Ok(("abc", Term::Special("藏!".to_owned())))
+            special::<(&str, ErrorKind)>("?藏!? abc"),
+            Ok((" abc", Expression::Special("藏!".to_owned())))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("? not closed"),
+            special::<(&str, ErrorKind)>("? not closed"),
             Err(Failure(("", ErrorKind::Char)))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("not opened ?"),
+            special::<(&str, ErrorKind)>("not opened ?"),
             Err(Error(("not opened ?", ErrorKind::Char)))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("? this has\na newline ?"),
-            Err(Failure(("\na newline ?", ErrorKind::Char)))
+            special::<(&str, ErrorKind)>("? this has\na newline ?"),
+            Ok(("", Expression::Special("thishasanewline".to_owned())))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("??"),
-            Ok(("", Term::Special("".to_owned())))
+            special::<(&str, ErrorKind)>("??"),
+            Ok(("", Expression::Special("".to_owned())))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("? test (* comment *) ?"),
-            Ok(("", Term::Special(" test (* comment *) ".to_owned())))
-        );
-        // Skips
-        assert_eq!(
-            special_sequence::<(&str, ErrorKind)>("  ? test ?  "),
-            Ok(("", Term::Special(" test ".to_owned())))
+            special::<(&str, ErrorKind)>("? test (* comment *) ?"),
+            Ok(("", Expression::Special("test(*comment*)".to_owned())))
         );
         assert_eq!(
-            special_sequence::<(&str, ErrorKind)>(" (**) ? test ?  (**) "),
-            Ok(("", Term::Special(" test ".to_owned())))
+            special::<(&str, ErrorKind)>("  ? test ?  "),
+            Err(Error(("  ? test ?  ", ErrorKind::Char)))
         );
     }
 
     #[test]
-    fn test_terminal_string() {
-        use super::terminal_string;
+    fn test_terminals() {
+        use super::terminal;
 
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("'a string'"),
-            Ok(("", Term::Terminal("a string".to_owned())))
+            terminal::<(&str, ErrorKind)>("'a string'"),
+            Ok(("", Expression::Terminal("a string".to_owned())))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("\"some other string  \"abc"),
-            Ok(("abc", Term::Terminal("some other string  ".to_owned())))
+            terminal::<(&str, ErrorKind)>("\"some other string  \"abc"),
+            Ok(("abc", Expression::Terminal("some other string  ".to_owned())))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("\"not closed"),
+            terminal::<(&str, ErrorKind)>("\"not closed"),
             Err(Failure(("", ErrorKind::Char)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("'not closed"),
+            terminal::<(&str, ErrorKind)>("'not closed"),
             Err(Failure(("", ErrorKind::Char)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("not opened'"),
+            terminal::<(&str, ErrorKind)>("not opened'"),
             Err(Error(("not opened'", ErrorKind::Char)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("'this has\na newline'abc"),
+            terminal::<(&str, ErrorKind)>("'this has\na newline'abc"),
             Err(Failure(("\na newline'abc", ErrorKind::Char)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("\"this has\na newline\"abc"),
+            terminal::<(&str, ErrorKind)>("\"this has\na newline\"abc"),
             Err(Failure(("\na newline\"abc", ErrorKind::Char)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("\"\""),
+            terminal::<(&str, ErrorKind)>("\"\""),
             Err(Failure(("\"", ErrorKind::TakeTill1)))
         );
         assert_eq!(
-            terminal_string::<(&str, ErrorKind)>("  'a string'  "),
-            Ok(("", Term::Terminal("a string".to_owned())))
-        );
-        assert_eq!(
-            terminal_string::<(&str, ErrorKind)>(" (**) 'a string' (**) "),
-            Ok(("", Term::Terminal("a string".to_owned())))
+            terminal::<(&str, ErrorKind)>("  'a string'  "),
+            Err(Error(("  'a string'  ", ErrorKind::Char)))
         );
     }
 
     #[test]
-    fn test_syntactic_primary() {
-        use super::syntactic_primary;
+    fn test_factors() {
+        use super::factor;
 
         assert_eq!(
-            syntactic_primary::<(&str, ErrorKind)>("'terminal'"),
-            Ok(("", Term::Terminal("terminal".to_owned())))
+            factor::<(&str, ErrorKind)>("'terminal'"),
+            Ok(("", Expression::Terminal("terminal".to_owned())))
         );
         assert_eq!(
-            syntactic_primary::<(&str, ErrorKind)>("nonterminal"),
-            Ok(("", Term::Nonterminal("nonterminal".to_owned())))
+            factor::<(&str, ErrorKind)>("nonterminal"),
+            Ok(("", Expression::Nonterminal("nonterminal".to_owned())))
         );
         assert_eq!(
-            syntactic_primary::<(&str, ErrorKind)>("? special ?"),
-            Ok(("", Term::Special(" special ".to_owned())))
+            factor::<(&str, ErrorKind)>("? special ?"),
+            Ok(("", Expression::Special("special".to_owned())))
         );
         assert_eq!(
-            syntactic_primary::<(&str, ErrorKind)>(""),
-            Ok(("", Term::Empty))
+            factor::<(&str, ErrorKind)>(""),
+            Ok(("", Expression::Empty))
         );
-    }
-
-    #[test]
-    fn test_syntactic_factor() {
-        use super::syntactic_factor;
-
         assert_eq!(
-            syntactic_factor::<(&str, ErrorKind)>("2 * 'terminal'"),
+            factor::<(&str, ErrorKind)>("2 * 'terminal'"),
             Ok((
                 "",
-                Term::Factor(2, Box::new(Term::Terminal("terminal".to_owned())))
+                Expression::Factor {
+                    count: 2,
+                    primary: Box::new(Expression::Terminal("terminal".to_owned()))
+                }
             ))
         );
         assert_eq!(
-            syntactic_factor::<(&str, ErrorKind)>(" 3* a "),
+            factor::<(&str, ErrorKind)>(" 3* a "),
             Ok((
                 "",
-                Term::Factor(3, Box::new(Term::Nonterminal("a".to_owned())))
+                Expression::Factor{
+                    count: 3,
+                    primary: Box::new(Expression::Nonterminal("a".to_owned()))
+                }
             ))
         );
         assert_eq!(
-            syntactic_factor::<(&str, ErrorKind)>(" 3 b "),
-            Ok((" 3 b ", Term::Empty))
+            factor::<(&str, ErrorKind)>(" 3 b "),
+            Ok(("3 b ", Expression::Empty))
         );
     }
 
     #[test]
-    fn test_bracketed_textual_comment() {
-        use super::bracketed_textual_comment;
+    fn test_comments() {
+        use super::comment;
 
         assert_eq!(
-            bracketed_textual_comment::<(&str, ErrorKind)>("(* comment *)"),
+            comment::<(&str, ErrorKind)>("(* comment *)"),
             Ok(("", ()))
         );
+        assert_eq!(
+            comment::<(&str, ErrorKind)>("(* (* nested *) *)  "),
+            Ok(("  ", ()))
+        );
+        assert_eq!(
+            comment::<(&str, ErrorKind)>("(*aa (* bb *) cc(*d*)*)fg"),
+            Ok(("fg", ()))
+        );
+        assert_eq!(
+            comment::<(&str, ErrorKind)>("(* not closed "),
+            Err(Failure(("", ErrorKind::Char)))
+        );
     }
 
     #[test]
-    fn test_syntactic_term() {
-        use super::syntactic_term;
+    fn test_terms() {
+        use super::term;
 
         assert_eq!(
-            syntactic_term::<(&str, ErrorKind)>("abc - 'test'"),
+            term::<(&str, ErrorKind)>("abc - 'test'"),
             Ok((
                 "",
-                Term::Exception(
-                    Box::new(Term::Nonterminal("abc".to_owned())),
-                    Box::new(Term::Terminal("test".to_owned()))
-                )
+                Expression::Exception {
+                    subject: Box::new(Expression::Nonterminal("abc".to_owned())),
+                    restriction: Box::new(Expression::Terminal("test".to_owned())),
+                }
             ))
         );
         assert_eq!(
-            syntactic_term::<(&str, ErrorKind)>("a-b-c"),
+            term::<(&str, ErrorKind)>("a-b-c"),
             Ok((
                 "-c",
-                Term::Exception(
-                    Box::new(Term::Nonterminal("a".to_owned())),
-                    Box::new(Term::Nonterminal("b".to_owned()))
-                )
-            ))
-        );
-    }
-
-    #[test]
-    fn test_single_definition() {
-        use super::single_definition;
-
-        assert_eq!(
-            single_definition::<(&str, ErrorKind)>("abc, 'test', bca"),
-            Ok((
-                "",
-                Expression(vec![
-                    Term::Nonterminal("abc".to_owned()),
-                    Term::Terminal("test".to_owned()),
-                    Term::Nonterminal("bca".to_owned())
-                ])
-            ))
-        );
-    }
-
-    #[test]
-    fn test_definitions_list() {
-        use super::definitions_list;
-
-        assert_eq!(
-            definitions_list::<(&str, ErrorKind)>(" a, 'b' | 'c', d "),
-            Ok((
-                "",
-                vec![
-                    Expression(vec![
-                        Term::Nonterminal("a".to_owned()),
-                        Term::Terminal("b".to_owned())
-                    ]),
-                    Expression(vec![
-                        Term::Terminal("c".to_owned()),
-                        Term::Nonterminal("d".to_owned())
-                    ])
-                ]
-            ))
-        );
-    }
-
-    #[test]
-    fn test_grouped_sequence() {
-        use super::grouped_sequence;
-
-        assert_eq!(
-            grouped_sequence::<(&str, ErrorKind)>("(b | c)"),
-            Ok((
-                "",
-                Term::Grouped(vec![
-                    Expression(vec![Term::Nonterminal("b".to_owned())]),
-                    Expression(vec![Term::Nonterminal("c".to_owned())])
-                ])
-            ))
-        );
-        assert_eq!(
-            grouped_sequence::<(&str, ErrorKind)>("( a, 'b' (* comment *) | c )"),
-            Ok((
-                "",
-                Term::Grouped(vec![
-                    Expression(vec![
-                        Term::Nonterminal("a".to_owned()),
-                        Term::Terminal("b".to_owned())
-                    ]),
-                    Expression(vec![Term::Nonterminal("c".to_owned())])
-                ])
-            ))
-        );
-    }
-
-    #[test]
-    fn test_repeated_sequence() {
-        use super::repeated_sequence;
-
-        assert_eq!(
-            repeated_sequence::<(&str, ErrorKind)>("{abc (**) |def}"),
-            Ok((
-                "",
-                Term::Repeated(vec![
-                    Expression(vec![Term::Nonterminal("abc".to_owned())]),
-                    Expression(vec![Term::Nonterminal("def".to_owned())])
-                ])
-            ))
-        );
-    }
-
-    #[test]
-    fn test_optional_sequence() {
-        use super::optional_sequence;
-
-        assert_eq!(
-            optional_sequence::<(&str, ErrorKind)>("[ abc|def (*test*) ]"),
-            Ok((
-                "",
-                Term::Optional(vec![
-                    Expression(vec![Term::Nonterminal("abc".to_owned())]),
-                    Expression(vec![Term::Nonterminal("def".to_owned())])
-                ])
-            ))
-        );
-    }
-
-    #[test]
-    fn test_syntax_rule() {
-        use super::syntax_rule;
-
-        assert_eq!(
-            syntax_rule::<(&str, ErrorKind)>("abc = 'a', (b | 'c' (* test *)); "),
-            Ok((
-                "",
-                Production {
-                    lhs: "abc".to_owned(),
-                    rhs: vec![Expression(vec![
-                        Term::Terminal("a".to_owned()),
-                        Term::Grouped(vec![
-                            Expression(vec![Term::Nonterminal("b".to_owned())]),
-                            Expression(vec![Term::Terminal("c".to_owned())])
-                        ])
-                    ])]
+                Expression::Exception {
+                    subject: Box::new(Expression::Nonterminal("a".to_owned())),
+                    restriction: Box::new(Expression::Nonterminal("b".to_owned())),
                 }
             ))
         );
     }
 
     #[test]
-    fn test_syntax() {
+    fn test_sequences() {
+        use super::sequence;
+
+        assert_eq!(
+            sequence::<(&str, ErrorKind)>("abc, 'test', bca"),
+            Ok((
+                "",
+                Expression::Sequence {
+                    first: Box::new(Expression::Nonterminal("abc".to_owned())),
+                    second: Box::new(Expression::Terminal("test".to_owned())),
+                    rest: vec![Expression::Nonterminal("bca".to_owned())]
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_alternatives() {
+        use super::alternative;
+
+        assert_eq!(
+            alternative::<(&str, ErrorKind)>(" a, 'b' | 'c', d "),
+            Ok((
+                "",
+                Expression::Alternative {
+                    first: Box::new(Expression::Sequence {
+                        first: Box::new(Expression::Nonterminal("a".to_owned())),
+                        second: Box::new(Expression::Terminal("b".to_owned())),
+                        rest: Vec::new(),
+                    }),
+                    second: Box::new(Expression::Sequence {
+                        first: Box::new(Expression::Terminal("c".to_owned())),
+                        second: Box::new(Expression::Nonterminal("d".to_owned())),
+                        rest: Vec::new(),
+                    }),
+                    rest: Vec::new(),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_grouped() {
+        use super::grouped;
+
+        assert_eq!(
+            grouped::<(&str, ErrorKind)>("(b | c)"),
+            Ok((
+                "",
+                Expression::Alternative {
+                    first: Box::new(Expression::Nonterminal("b".to_owned())),
+                    second: Box::new(Expression::Nonterminal("c".to_owned())),
+                    rest: Vec::new(),
+                }
+            ))
+        );
+        assert_eq!(
+            grouped::<(&str, ErrorKind)>("( a, 'b' (* comment *) | c )"),
+            Ok((
+                "",
+                Expression::Alternative {
+                    first: Box::new(Expression::Sequence {
+                        first: Box::new(Expression::Nonterminal("a".to_owned())),
+                        second: Box::new(Expression::Terminal("b".to_owned())),
+                        rest: Vec::new(),
+                    }),
+                    second: Box::new(Expression::Nonterminal("c".to_owned())),
+                    rest: Vec::new(),
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_repeated() {
+        use super::repeated;
+
+        assert_eq!(
+            repeated::<(&str, ErrorKind)>("{abc (**) |def}"),
+            Ok((
+                "",
+                Expression::Repeated(Box::new(Expression::Alternative {
+                    first: Box::new(Expression::Nonterminal("abc".to_owned())),
+                    second: Box::new(Expression::Nonterminal("def".to_owned())),
+                    rest: Vec::new(),
+                }))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_optionals() {
+        use super::optional;
+
+        assert_eq!(
+            optional::<(&str, ErrorKind)>("[ abc|def (*test*) ]"),
+            Ok((
+                "",
+                Expression::Optional(Box::new(Expression::Alternative {
+                    first: Box::new(Expression::Nonterminal("abc".to_owned())),
+                    second: Box::new(Expression::Nonterminal("def".to_owned())),
+                    rest: Vec::new(),
+                }))
+            ))
+        );
+    }
+
+    #[test]
+    fn test_productions() {
+        use super::production;
+
+        assert_eq!(
+            production::<(&str, ErrorKind)>("abc = 'a', (b | 'c' (* test *)); "),
+            Ok((
+                "",
+                Production {
+                    lhs: "abc".to_owned(),
+                    rhs: Expression::Sequence {
+                        first: Box::new(Expression::Terminal("a".to_owned())),
+                        second: Box::new(Expression::Alternative {
+                            first: Box::new(Expression::Nonterminal("b".to_owned())),
+                            second: Box::new(Expression::Terminal("c".to_owned())),
+                            rest: Vec::new(),
+                        }),
+                        rest: Vec::new(),
+                    }
+                }
+            ))
+        );
+    }
+
+    #[test]
+    fn test_syntaxes() {
         use super::syntax;
 
         assert_eq!(
@@ -799,22 +892,26 @@ mod tests {
                     productions: vec![
                         Production {
                             lhs: "a".to_owned(),
-                            rhs: vec![
-                                Expression(vec![Term::Terminal("d".to_owned())]),
-                                Expression(vec![Term::Repeated(vec![Expression(vec![
-                                    Term::Factor(2, Box::new(Term::Terminal("e".to_owned())))
-                                ])])])
-                            ]
+                            rhs: Expression::Alternative {
+                                first: Box::new(Expression::Terminal("d".to_owned())),
+                                second: Box::new(Expression::Repeated(Box::new(Expression::Factor {
+                                    count: 2,
+                                    primary: Box::new(Expression::Terminal("e".to_owned()))
+                                }))),
+                                rest: Vec::new(),
+                            }
                         },
                         Production {
                             lhs: "b".to_owned(),
-                            rhs: vec![Expression(vec![
-                                Term::Terminal("a".to_owned()),
-                                Term::Grouped(vec![
-                                    Expression(vec![Term::Nonterminal("a".to_owned())]),
-                                    Expression(vec![Term::Terminal("c".to_owned())])
-                                ])
-                            ])]
+                            rhs: Expression::Sequence {
+                                first: Box::new(Expression::Terminal("a".to_owned())),
+                                second: Box::new(Expression::Alternative {
+                                    first: Box::new(Expression::Nonterminal("a".to_owned())),
+                                    second: Box::new(Expression::Terminal("c".to_owned())),
+                                    rest: Vec::new(),
+                                }),
+                                rest: Vec::new(),
+                            }
                         }
                     ]
                 }

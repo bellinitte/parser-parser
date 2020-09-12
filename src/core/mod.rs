@@ -1,5 +1,4 @@
 mod builder;
-mod highlighter;
 mod parser;
 
 pub fn parse(input: &str) -> String {
