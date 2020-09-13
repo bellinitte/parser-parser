@@ -1,9 +1,6 @@
-use js_sys::JsString;
-use wasm_bindgen::prelude::*;
-
 mod core;
 
-pub use crate::core::EbnfParser;
+pub use crate::core::EbnfParserParser;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]

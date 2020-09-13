@@ -1,3 +1,4 @@
 mod ebnf;
+mod error;
 
-pub use ebnf::EbnfParser;
+pub use ebnf::EbnfParserParser;

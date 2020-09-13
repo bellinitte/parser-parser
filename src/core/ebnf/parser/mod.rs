@@ -4,7 +4,8 @@ use nom::{
     error::{ErrorKind, ParseError},
     IResult, InputTakeAtPosition,
 };
-use super::{Expression, Grammar, Production};
+use super::ast::{Expression, Grammar, Production};
+use super::error::Result;
 
 pub mod error;
 #[cfg(test)]
@@ -17,7 +18,7 @@ mod tests;
 /// ```rust
 /// assert_eq!(integer::<(&str, ErrorKind)>("123"), Ok(("", 123)));
 /// ```
-pub fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, usize, E> {
+fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, usize, E> {
     let mut chars = i.chars();
     let mut offset = 0;
     let mut integer: usize = 0;
@@ -73,7 +74,7 @@ pub fn integer<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 ///     Ok((" abc", "test2"))
 /// );
 /// ```
-pub fn identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
+fn identifier<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, String, E> {
     let mut chars = i.chars();
     let mut offset = 0;
     let mut identifier: String = String::new();
@@ -446,6 +447,10 @@ fn comment<'a, E: ParseError<&'a str>>(
     }
 }
 
-pub(super) fn parse<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
-    syntax(i)
+pub(super) fn parse<'a>(input: &'a str) -> Result<Grammar> {
+    match syntax::<error::Error>(input) {
+        Ok((_, grammar)) => Ok(grammar),
+        Err(nom::Err::Failure(inner)) => Err(inner.into()),
+        _ => unreachable!(),
+    }
 }

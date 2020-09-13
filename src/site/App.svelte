@@ -8,7 +8,7 @@
     let output = '';
 
     function handleChange() {
-        parser = new core.EbnfParser(parseInput);
+        parser = new core.EbnfParserParser(parseInput);
         output = parser.check(checkInput);
     }
 </script>
