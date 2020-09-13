@@ -411,7 +411,7 @@ fn production<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, P
     ))
 }
 
-pub(super) fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
+fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
     use nom::{combinator::map, multi::many1};
 
     map(many1(production), |p: Vec<Production>| -> Grammar {
@@ -444,4 +444,8 @@ fn comment<'a, E: ParseError<&'a str>>(
         };
         j = i;
     }
+}
+
+pub(super) fn parse<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
+    syntax(i)
 }

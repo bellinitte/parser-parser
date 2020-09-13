@@ -3,15 +3,18 @@ use wasm_bindgen::prelude::*;
 
 mod core;
 
+pub use crate::core::EbnfParser;
+
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-#[wasm_bindgen]
-pub fn parse(input: JsString) -> JsString {
-    let i: String = input.into();
-    core::parse(&i).into()
-}
+// #[wasm_bindgen]
+// pub fn parse(input: JsString) -> bool {
+//     let i: String = input.into();
+    
+//     true
+// }
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the

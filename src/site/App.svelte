@@ -3,11 +3,13 @@
 
     export let core;
 
-    let input = '<span number>128</span>';
+    let parseInput = '';
+    let checkInput = '';
     let output = '';
 
     function handleChange() {
-        output = core.parse(input);
+        parser = new core.EbnfParser(parseInput);
+        output = parser.check(checkInput);
     }
 </script>
 
@@ -19,8 +21,10 @@
 
 <h1>Parser-parser</h1>
 
-<Editor />
+<!-- <Editor /> -->
 
-<!-- <textarea bind:value={input} on:input={handleChange}></textarea> -->
+<textarea bind:value={parseInput} on:input={handleChange}></textarea>
 
-<!-- <p>{output}</p> -->
+<textarea bind:value={checkInput} on:input={handleChange}></textarea>
+
+<p>{output}</p>
