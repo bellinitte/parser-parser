@@ -4,49 +4,11 @@ use nom::{
     error::{ErrorKind, ParseError},
     IResult, InputTakeAtPosition,
 };
+use super::{Expression, Grammar, Production};
 
 pub mod error;
 #[cfg(test)]
 mod tests;
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Grammar {
-    productions: Vec<Production>,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Production {
-    lhs: String,
-    rhs: Expression,
-}
-
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum Expression {
-    Alternative {
-        first: Box<Expression>,
-        second: Box<Expression>,
-        rest: Vec<Expression>,
-    },
-    Sequence {
-        first: Box<Expression>,
-        second: Box<Expression>,
-        rest: Vec<Expression>,
-    },
-    Optional(Box<Expression>),
-    Repeated(Box<Expression>),
-    Factor {
-        count: usize,
-        primary: Box<Expression>
-    },
-    Exception {
-        subject: Box<Expression>,
-        restriction: Box<Expression>
-    },
-    Nonterminal(String),
-    Terminal(String),
-    Special(String),
-    Empty,
-}
 
 /// Parses a non-zero sequence of decimal digits and returns a usize represented by that sequence.
 ///
@@ -204,7 +166,7 @@ fn optional_gap<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, (), 
 ///     Ok(("", " anything really "))
 /// );
 /// ```
-pub fn special<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn special<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     let mut chars = i.chars();
     let mut offset = 0;
     let mut sequence: String = String::new();
@@ -259,7 +221,7 @@ pub fn special<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, 
 /// # Example
 ///
 ///
-pub fn terminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn terminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{
         branch::alt,
         bytes::complete::take_till1,
@@ -290,7 +252,7 @@ pub fn terminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str,
     )(i)
 }
 
-pub fn nonterminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn nonterminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::combinator::map;
 
     map(
@@ -299,13 +261,13 @@ pub fn nonterminal<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a s
     )(i)
 }
 
-pub fn grouped<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn grouped<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::char, sequence::delimited};
 
     delimited(char('('), alternative, char(')'))(i)
 }
 
-pub fn repeated<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn repeated<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
     
     map(
@@ -318,7 +280,7 @@ pub fn repeated<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str,
     )(i)
 }
 
-pub fn optional<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn optional<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{branch::alt, bytes::complete::tag, combinator::map, sequence::delimited};
     
     map(
@@ -331,7 +293,7 @@ pub fn optional<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str,
     )(i)
 }
 
-pub fn factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{branch::alt, character::complete::char, combinator::{map, opt}};
 
     let (i, count) = opt(|i: &'a str| -> IResult<&'a str, usize, E> {
@@ -369,11 +331,11 @@ pub fn factor<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, E
     Ok((i, expression))
 }
 
-pub fn empty<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn empty<'a, E: ParseError<&'a str>>(i: &'a str) -> IResult<&'a str, Expression, E> {
     Ok((i, Expression::Empty))
 }
 
-pub fn term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
+fn term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::char, combinator::opt, sequence::preceded};
 
     let (i, primary) = factor(i)?;
@@ -388,7 +350,7 @@ pub fn term<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Exp
     })
 }
 
-pub fn sequence<'a, E: ParseError<&'a str> + 'a>(
+fn sequence<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::char, combinator::map, multi::separated_list1};
@@ -409,7 +371,7 @@ pub fn sequence<'a, E: ParseError<&'a str> + 'a>(
     )(i)
 }
 
-pub fn alternative<'a, E: ParseError<&'a str> + 'a>(
+fn alternative<'a, E: ParseError<&'a str> + 'a>(
     i: &'a str,
 ) -> IResult<&'a str, Expression, E> {
     use nom::{character::complete::one_of, combinator::map, multi::separated_list1};
@@ -430,7 +392,7 @@ pub fn alternative<'a, E: ParseError<&'a str> + 'a>(
     )(i)
 }
 
-pub fn production<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Production, E> {
+fn production<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Production, E> {
     use nom::character::complete::{char, one_of};
 
     let (i, _) = optional_gap(i)?;
@@ -449,7 +411,7 @@ pub fn production<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a st
     ))
 }
 
-pub fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
+pub(super) fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, Grammar, E> {
     use nom::{combinator::map, multi::many1};
 
     map(many1(production), |p: Vec<Production>| -> Grammar {
@@ -457,7 +419,7 @@ pub fn syntax<'a, E: ParseError<&'a str> + 'a>(i: &'a str) -> IResult<&'a str, G
     })(i)
 }
 
-pub fn comment<'a, E: ParseError<&'a str>>(
+fn comment<'a, E: ParseError<&'a str>>(
     i: &'a str,
 ) -> IResult<&'a str, (), E> {
     use nom::{
