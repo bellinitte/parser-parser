@@ -24,7 +24,7 @@ impl EbnfParserParser {
         return Ok(EbnfParserParser {
             parser: Box::new(|input: &str| -> bool {
                 tag::<&str, &str, ()>("test")(input).is_ok()
-            })
+            }),
         });
     }
 

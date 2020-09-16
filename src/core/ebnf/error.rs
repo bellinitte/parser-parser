@@ -1,5 +1,5 @@
-use std::fmt;
 use super::parser;
+use std::fmt;
 use wasm_bindgen::prelude::*;
 
 #[derive(Debug)]

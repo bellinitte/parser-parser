@@ -9,7 +9,7 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 // #[wasm_bindgen]
 // pub fn parse(input: JsString) -> bool {
 //     let i: String = input.into();
-    
+
 //     true
 // }
 
