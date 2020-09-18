@@ -1,9 +1,12 @@
 use wasm_bindgen::prelude::*;
 
-mod ast;
 mod builder;
 pub mod error;
+mod lexer;
 mod parser;
+mod scanner;
+
+use error::Error;
 
 #[wasm_bindgen]
 pub struct EbnfParserParser {
@@ -14,18 +17,18 @@ pub struct EbnfParserParser {
 impl EbnfParserParser {
     #[wasm_bindgen(constructor)]
     pub fn new(input: &str) -> Result<EbnfParserParser, JsValue> {
-        use nom::bytes::complete::tag;
+        match EbnfParserParser::generate(input) {
+            Ok(parser_parser) => Ok(parser_parser),
+            Err(e) => Err(e.into()),
+        }
+    }
 
-        let _ = match parser::parse(&input) {
-            Ok(ast) => ast,
-            Err(err) => return Err(err.into()),
-        };
-
-        return Ok(EbnfParserParser {
-            parser: Box::new(|input: &str| -> bool {
-                tag::<&str, &str, ()>("test")(input).is_ok()
-            }),
-        });
+    fn generate(input: &str) -> Result<EbnfParserParser, Error> {
+        let symbols: Vec<scanner::Symbol> = scanner::scan(input)?;
+        let tokens: Vec<lexer::Token> = lexer::lex(&symbols)?;
+        let ast: parser::Grammar = parser::parse(&tokens)?;
+        let parser = builder::build(&ast)?;
+        Ok(EbnfParserParser { parser })
     }
 
     pub fn check(&self, input: &str) -> bool {
