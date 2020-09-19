@@ -8,14 +8,17 @@ use nom::{
     multi::{many1, separated_list1},
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
+    error::ErrorKind
 };
 use tokens::*;
+use utils::*;
 
 pub mod ast;
 pub mod error;
 #[cfg(test)]
 mod tests;
 mod tokens;
+mod utils;
 
 fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
@@ -106,16 +109,22 @@ fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    map(
-        separated_list1(definition_separator, sequence),
-        |nodes| match nodes.len() {
-            1 => nodes[0].clone(),
-            _ => Expression::Alternative {
-                first: Box::new(nodes[0].clone()),
-                second: Box::new(nodes[1].clone()),
-                rest: nodes[2..].to_vec(),
-            }
-            .node_at(nodes[0].span.start..nodes[nodes.len() - 1].span.end),
+    map_err(
+        map(
+            separated_list1(definition_separator, sequence),
+            |nodes| match nodes.len() {
+                1 => nodes[0].clone(),
+                _ => Expression::Alternative {
+                    first: Box::new(nodes[0].clone()),
+                    second: Box::new(nodes[1].clone()),
+                    rest: nodes[2..].to_vec(),
+                }
+                .node_at(nodes[0].span.start..nodes[nodes.len() - 1].span.end),
+            },
+        ),
+        |e| match e {
+            Error::Nom(ErrorKind::SeparatedList) => Error::DefinitionExpected,
+            e => e,
         },
     )(i)
 }

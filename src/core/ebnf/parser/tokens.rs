@@ -243,35 +243,63 @@ macro_rules! literal {
 literal!(
     concatenation,
     TokenKind::Concatenation,
-    Error::ConcatenationExpected
+    Error::ConcatenationSymbolExpected
 );
-literal!(definition, TokenKind::Definition, Error::DefinitionExpected);
+literal!(
+    definition,
+    TokenKind::Definition,
+    Error::DefinitionSymbolExpected
+);
 literal!(
     definition_separator,
     TokenKind::DefinitionSeparator,
-    Error::DefinitionSeparatorExpected
+    Error::DefinitionSeparatorSymbolExpected
 );
-literal!(end_group, TokenKind::EndGroup, Error::EndGroupExpected);
-literal!(end_option, TokenKind::EndOption, Error::EndOptionExpected);
-literal!(end_repeat, TokenKind::EndRepeat, Error::EndRepeatExpected);
-literal!(exception, TokenKind::Exception, Error::ExceptionExpected);
-literal!(repetition, TokenKind::Repetition, Error::RepetitionExpected);
+literal!(
+    end_group,
+    TokenKind::EndGroup,
+    Error::EndGroupSymbolExpected
+);
+literal!(
+    end_option,
+    TokenKind::EndOption,
+    Error::EndOptionSymbolExpected
+);
+literal!(
+    end_repeat,
+    TokenKind::EndRepeat,
+    Error::EndRepeatSymbolExpected
+);
+literal!(
+    exception,
+    TokenKind::Exception,
+    Error::ExceptionSymbolExpected
+);
+literal!(
+    repetition,
+    TokenKind::Repetition,
+    Error::RepetitionSymbolExpected
+);
 literal!(
     start_group,
     TokenKind::StartGroup,
-    Error::StartGroupExpected
+    Error::StartGroupSymbolExpected
 );
 literal!(
     start_option,
     TokenKind::StartOption,
-    Error::StartOptionExpected
+    Error::StartOptionSymbolExpected
 );
 literal!(
     start_repeat,
     TokenKind::StartRepeat,
-    Error::StartRepeatExpected
+    Error::StartRepeatSymbolExpected
 );
-literal!(terminator, TokenKind::Terminator, Error::TerminatorExpected);
+literal!(
+    terminator,
+    TokenKind::Terminator,
+    Error::TerminatorSymbolExpected
+);
 
 pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
     match i.iter_elements().next() {
