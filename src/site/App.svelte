@@ -8,8 +8,12 @@
     let output = '';
 
     function handleChange() {
-        parser = new core.EbnfParserParser(parseInput);
-        output = parser.check(checkInput);
+        try {
+            let parser = new core.EbnfParserParser(parseInput);
+            output = parser.check(checkInput);
+        } catch (e) {
+            output = e;
+        }
     }
 </script>
 

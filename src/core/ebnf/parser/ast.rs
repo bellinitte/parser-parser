@@ -1,3 +1,4 @@
+use super::TokenKind;
 use std::ops::Range;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -42,11 +43,11 @@ pub enum Expression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Node<T> {
     pub inner: T,
-    pub span: Option<Range<usize>>,
+    pub span: Range<usize>,
 }
 
 impl<T> Node<T> {
-    pub fn new(inner: T, span: Option<Range<usize>>) -> Node<T> {
+    pub fn new(inner: T, span: Range<usize>) -> Node<T> {
         Node { inner, span }
     }
 }
@@ -65,7 +66,7 @@ macro_rules! impl_node_at {
             fn node_at(self, span: Range<usize>) -> Node<$impl_type> {
                 Node {
                     inner: self,
-                    span: Some(span),
+                    span: span,
                 }
             }
         }
@@ -75,5 +76,6 @@ macro_rules! impl_node_at {
 impl_node_at!(Grammar);
 impl_node_at!(Production);
 impl_node_at!(Expression);
+impl_node_at!(TokenKind);
 impl_node_at!(String);
 impl_node_at!(usize);

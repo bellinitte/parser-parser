@@ -13,7 +13,6 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
 
     'tokens: loop {
         'gap: loop {
-            println!("{:?}", symbols.get(i));
             match symbols.get(i) {
                 Some((_, c)) if c.is_whitespace() => {
                     i += 1;
@@ -59,7 +58,6 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                 _ => break 'gap,
             };
         }
-        println!("{:?}", symbols.get(i));
         match symbols.get(i) {
             Some((o, ',')) => {
                 tokens.push(Token::new(TokenKind::Concatenation, *o..*o + 1));
@@ -195,7 +193,6 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                         }
                         _ => {
                             tokens.push(Token::new(TokenKind::Integer(integer), *os..oe + 1));
-                            i += 1;
                             break 'integer;
                         }
                     }
@@ -217,7 +214,6 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                         }
                         _ => {
                             tokens.push(Token::new(TokenKind::Nonterminal(string), *os..oe + 1));
-                            i += 1;
                             break 'nonterminal;
                         }
                     }

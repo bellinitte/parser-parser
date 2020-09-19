@@ -27,6 +27,19 @@ fn test_definition_separators() {
 }
 
 #[test]
+fn test_definitions() {
+    assert_eq!(
+        lex(&regular("abc = b;")),
+        Ok(vec![
+            Token::new(TokenKind::Nonterminal("abc".to_owned()), 0..3),
+            Token::new(TokenKind::Definition, 4..5),
+            Token::new(TokenKind::Nonterminal("b".to_owned()), 6..7),
+            Token::new(TokenKind::Terminator, 7..8)
+        ])
+    );
+}
+
+#[test]
 fn test_options() {
     assert_eq!(
         lex(&regular(" (/ [ /) ]")),
@@ -72,6 +85,33 @@ fn test_terminals() {
     assert_eq!(lex(&regular("\"bbb'   ")), Err(Error::UnterminatedTerminal));
     assert_eq!(lex(&regular("\"\"")), Err(Error::EmptyTerminal));
     assert_eq!(lex(&regular("''")), Err(Error::EmptyTerminal));
+    //     ok_case!(
+    //         terminal,
+    //         "'a string'",
+    //         10,
+    //         Expression::Terminal("a string".to_owned()).token_at(0..10)
+    //     );
+    //     ok_case!(
+    //         terminal,
+    //         "\"some other string  \"abc",
+    //         21,
+    //         Expression::Terminal("some other string  ".to_owned()).token_at(0..21)
+    //     );
+    //     failure_case!(terminal, "\"not closed", Error::Internal(ErrorKind::Char));
+    //     failure_case!(terminal, "'not closed", Error::Internal(ErrorKind::Char));
+    //     error_case!(terminal, "not opened'", Error::Internal(ErrorKind::Char));
+    //     failure_case!(
+    //         terminal,
+    //         "'this has\na newline'abc",
+    //         Error::Internal(ErrorKind::Char)
+    //     );
+    //     failure_case!(
+    //         terminal,
+    //         "\"this has\na newline\"abc",
+    //         Error::Internal(ErrorKind::Char)
+    //     );
+    //     failure_case!(terminal, "\"\"", Error::Internal(ErrorKind::TakeTill1));
+    //     error_case!(terminal, "  'a string'  ", Error::Internal(ErrorKind::Char));
 }
 
 #[test]
@@ -95,6 +135,39 @@ fn test_specials() {
         lex(&regular("??")),
         Ok(vec![Token::new(TokenKind::Special("".to_owned()), 0..2)])
     );
+    //     ok_case!(
+    //         special,
+    //         "? anything really ?",
+    //         19,
+    //         Expression::Special("anythingreally".to_owned()).token_at(0..19)
+    //     );
+    //     ok_case!(
+    //         special,
+    //         "?藏!? abc",
+    //         6,
+    //         Expression::Special("藏!".to_owned()).token_at(0..6)
+    //     );
+    //     failure_case!(special, "? not closed", Error::UnterminatedSpecial);
+    //     error_case!(special, "not opened ?", Error::Internal(ErrorKind::Char));
+    //     ok_case!(
+    //         special,
+    //         "? this has\na newline ?",
+    //         22,
+    //         Expression::Special("thishasanewline".to_owned()).token_at(0..22)
+    //     );
+    //     ok_case!(
+    //         special,
+    //         "??",
+    //         2,
+    //         Expression::Special("".to_owned()).token_at(0..2)
+    //     );
+    //     ok_case!(
+    //         special,
+    //         "? test (* comment *) ?",
+    //         22,
+    //         Expression::Special("test(*comment*)".to_owned()).token_at(0..22)
+    //     );
+    //     error_case!(special, "  ? test ?  ", Error::Internal(ErrorKind::Char));
 }
 
 #[test]
@@ -115,6 +188,13 @@ fn test_integers() {
         lex(&regular(" 0 ")),
         Ok(vec![Token::new(TokenKind::Integer(0), 1..2)])
     );
+    // ok_case!(integer, "123", 3, 123.token_at(0..3));
+    // ok_case!(integer, "12 3", 4, 123.token_at(0..4));
+    // ok_case!(integer, "12 a", 2, 12.token_at(0..2));
+    // ok_case!(integer, "012test", 3, 12.token_at(0..3));
+    // error_case!(integer, "test", Error::Internal(ErrorKind::Char));
+    // ok_case!(integer, "123  ", 3, 123.token_at(0..3));
+    // ok_case!(integer, "1 2  3 ", 6, 123.token_at(0..6));
 }
 
 #[test]
@@ -147,6 +227,24 @@ fn test_nonterminals() {
             1..2
         )])
     );
+    //     ok_case!(identifier, "abc12", 5, "abc12".to_owned().token_at(0..5));
+    //     error_case!(identifier, "12abc", Error::Internal(ErrorKind::Char));
+    //     error_case!(identifier, "_test", Error::Internal(ErrorKind::Char));
+    //     ok_case!(
+    //         identifier,
+    //         "test abc",
+    //         8,
+    //         "testabc".to_owned().token_at(0..8)
+    //     );
+    //     ok_case!(
+    //         identifier,
+    //         "藏京٣¾  abc",
+    //         15,
+    //         "藏京٣¾abc".to_owned().token_at(0..15)
+    //     );
+    //     error_case!(identifier, "  test", Error::Internal(ErrorKind::Char));
+    //     error_case!(identifier, "  test  abc", Error::Internal(ErrorKind::Char));
+    //     ok_case!(identifier, "test  5 ", 7, "test5".to_owned().token_at(0..7));
 }
 
 #[test]

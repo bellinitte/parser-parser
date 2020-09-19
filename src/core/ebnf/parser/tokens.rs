@@ -1,28 +1,26 @@
-use super::super::lexer::Token;
+use super::super::lexer::{Token, TokenKind};
 use nom::{
-    AsBytes, Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake,
-    Offset, ParseTo, Slice, UnspecializedInput,
+    Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Slice,
+    UnspecializedInput,
 };
 use std::iter::{Enumerate, Map};
 use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
 use std::slice::Iter;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct Tokens<'a> {
     inner: &'a [Token],
+    offset: usize, // used in the empty expression
 }
 
 impl<'a> Tokens<'a> {
     pub fn new(tokens: &'a [Token]) -> Tokens<'a> {
-        Tokens { inner: tokens }
+        Tokens {
+            inner: tokens,
+            offset: 0,
+        }
     }
 }
-
-// impl<'a> From<&'a str> for Span<'a> {
-//     fn from(i: &'a str) -> Span<'a> {
-//         Span::new(i)
-//     }
-// }
 
 impl<'a> PartialEq for Tokens<'a> {
     fn eq(&self, other: &Tokens) -> bool {
@@ -31,12 +29,6 @@ impl<'a> PartialEq for Tokens<'a> {
 }
 
 impl<'a> Eq for Tokens<'a> {}
-
-// impl<'a> AsBytes for Span<'a> {
-//     fn as_bytes(&self) -> &[u8] {
-//         self.fragment.as_bytes()
-//     }
-// }
 
 impl<'a> InputLength for Tokens<'a> {
     fn input_len(&self) -> usize {
@@ -84,12 +76,27 @@ where
     fn take(&self, count: usize) -> Self {
         Tokens {
             inner: &self.inner[0..count],
+            offset: self.offset,
         }
     }
 
     fn take_split(&self, count: usize) -> (Self, Self) {
         let (prefix, suffix) = self.inner.split_at(count);
-        (Tokens { inner: suffix }, Tokens { inner: prefix })
+        let offset = if count > 0 {
+            self.inner[count - 1].span.end
+        } else {
+            self.offset
+        };
+        (
+            Tokens {
+                inner: suffix,
+                offset: self.offset,
+            },
+            Tokens {
+                inner: prefix,
+                offset,
+            },
+        )
     }
 }
 
@@ -124,8 +131,14 @@ impl<'a> Compare<Tokens<'a>> for Tokens<'a> {
 
 impl<'a> Slice<Range<usize>> for Tokens<'a> {
     fn slice(&self, range: Range<usize>) -> Tokens<'a> {
+        let offset = if range.start > 0 {
+            self.inner[range.start - 1].span.end
+        } else {
+            self.offset
+        };
         Tokens {
             inner: &self.inner[range],
+            offset,
         }
     }
 }
@@ -134,14 +147,21 @@ impl<'a> Slice<RangeTo<usize>> for Tokens<'a> {
     fn slice(&self, range: RangeTo<usize>) -> Tokens<'a> {
         Tokens {
             inner: &self.inner[range],
+            offset: self.offset,
         }
     }
 }
 
 impl<'a> Slice<RangeFrom<usize>> for Tokens<'a> {
     fn slice(&self, range: RangeFrom<usize>) -> Tokens<'a> {
+        let offset = if range.start > 0 {
+            self.inner[range.start - 1].span.end
+        } else {
+            self.offset
+        };
         Tokens {
             inner: &self.inner[range],
+            offset,
         }
     }
 }
@@ -150,6 +170,7 @@ impl<'a> Slice<RangeFull> for Tokens<'a> {
     fn slice(&self, range: RangeFull) -> Tokens<'a> {
         Tokens {
             inner: &self.inner[range],
+            offset: self.offset,
         }
     }
 }
@@ -196,18 +217,95 @@ impl<'a> FindSubstring<&'a [Token]> for Tokens<'a> {
     }
 }
 
-// impl<'a, R: FromStr> ParseTo<R> for Tokens<'a> {
-//     #[inline]
-//     fn parse_to(&self) -> Option<R> {
-//         self.fragment.parse_to()
-//     }
-// }
+use super::Error;
+use super::NodeAt;
+use super::{Expression, Node};
+use nom::Err;
+use nom::IResult;
 
-// impl<'a> Offset for Tokens<'a> {
-//     fn offset(&self, second: &Self) -> usize {
-//         let fst = self.inner[0].range.start;
-//         let snd = second.offset;
+#[macro_export]
+macro_rules! literal {
+    ($name:ident, $kind:pat, $error:expr) => {
+        pub fn $name(i: Tokens) -> IResult<Tokens, Node<TokenKind>, Error> {
+            match i.iter_elements().next() {
+                Some(Token {
+                    kind: kind @ $kind,
+                    span,
+                }) => Ok((i.slice(1..), kind.node_at(span))),
+                _ => Err(Err::Error($error)),
+            }
+        }
+    };
+}
 
-//         snd - fst
-//     }
-// }
+literal!(concatenation, TokenKind::Concatenation, Error::ConcatenationExpected);
+literal!(definition, TokenKind::Definition, Error::DefinitionExpected);
+literal!(definition_separator, TokenKind::DefinitionSeparator, Error::DefinitionSeparatorExpected);
+literal!(end_group, TokenKind::EndGroup, Error::EndGroupExpected);
+literal!(end_option, TokenKind::EndOption, Error::EndOptionExpected);
+literal!(end_repeat, TokenKind::EndRepeat, Error::EndRepeatExpected);
+literal!(exception, TokenKind::Exception, Error::ExceptionExpected);
+literal!(repetition, TokenKind::Repetition, Error::RepetitionExpected);
+literal!(start_group, TokenKind::StartGroup, Error::StartGroupExpected);
+literal!(start_option, TokenKind::StartOption, Error::StartOptionExpected);
+literal!(start_repeat, TokenKind::StartRepeat, Error::StartRepeatExpected);
+literal!(terminator, TokenKind::Terminator, Error::TerminatorExpected);
+
+pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
+    match i.iter_elements().next() {
+        Some(Token {
+            kind: TokenKind::Nonterminal(s),
+            span,
+        }) => Ok((i.slice(1..), s.node_at(span))),
+        _ => Err(Err::Error(Error::IdentifierExpected)),
+    }
+}
+
+pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+    match i.iter_elements().next() {
+        Some(Token {
+            kind: TokenKind::Nonterminal(s),
+            span,
+        }) => Ok((i.slice(1..), Expression::Nonterminal(s).node_at(span))),
+        _ => Err(Err::Error(Error::NonterminalExpected)),
+    }
+}
+
+pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+    match i.iter_elements().next() {
+        Some(Token {
+            kind: TokenKind::Terminal(s),
+            span,
+        }) => Ok((i.slice(1..), Expression::Terminal(s).node_at(span))),
+        _ => Err(Err::Error(Error::TerminalExpected)),
+    }
+}
+
+pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+    match i.iter_elements().next() {
+        Some(Token {
+            kind: TokenKind::Special(s),
+            span,
+        }) => Ok((i.slice(1..), Expression::Special(s).node_at(span))),
+        _ => Err(Err::Error(Error::SpecialExpected)),
+    }
+}
+
+pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
+    match i.iter_elements().next() {
+        Some(Token {
+            kind: TokenKind::Integer(s),
+            span,
+        }) => Ok((i.slice(1..), s.node_at(span))),
+        _ => Err(Err::Error(Error::IntegerExpected)),
+    }
+}
+
+pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+    let start = i.offset;
+    let end = match i.iter_elements().next() {
+        Some(token) => token.span.start,
+        None => start,
+    };
+    Ok((i, Expression::Empty.node_at(start..end)))
+}
