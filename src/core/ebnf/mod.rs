@@ -1,3 +1,4 @@
+use error::Error;
 use wasm_bindgen::prelude::*;
 
 mod builder;
@@ -5,8 +6,6 @@ pub mod error;
 mod lexer;
 mod parser;
 mod scanner;
-
-use error::Error;
 
 #[wasm_bindgen]
 pub struct EbnfParserParser {

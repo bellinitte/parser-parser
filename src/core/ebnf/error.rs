@@ -1,7 +1,4 @@
-use super::builder;
-use super::lexer;
-use super::parser;
-use super::scanner;
+use super::{builder, lexer, parser, scanner};
 use std::fmt;
 use wasm_bindgen::prelude::*;
 

@@ -1,10 +1,14 @@
-// TODO decide what to do about the fact that a terminal can contain a newline vs a space.
-
 use super::lexer::{Token, TokenKind};
-use ast::NodeAt;
-pub use ast::{Expression, Grammar, Node, Production};
+pub use ast::{Expression, Grammar, Node, NodeAt, Production};
 use error::Error;
-use nom::IResult;
+use nom::{
+    branch::alt,
+    combinator::map,
+    combinator::opt,
+    multi::{many1, separated_list1},
+    sequence::{pair, preceded, separated_pair, terminated, tuple},
+    IResult,
+};
 use tokens::*;
 
 pub mod ast;
@@ -14,8 +18,6 @@ mod tests;
 mod tokens;
 
 fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, sequence::tuple};
-
     map(
         tuple((start_group, alternative, end_group)),
         |(open, node, close)| node.inner.node_at(open.span.start..close.span.end),
@@ -23,8 +25,6 @@ fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, sequence::tuple};
-
     map(
         tuple((start_repeat, alternative, end_repeat)),
         |(open, node, close)| {
@@ -34,8 +34,6 @@ fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, sequence::tuple};
-
     map(
         tuple((start_option, alternative, end_option)),
         |(open, node, close)| {
@@ -45,13 +43,6 @@ fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{
-        branch::alt,
-        combinator::map,
-        combinator::opt,
-        sequence::{pair, terminated},
-    };
-
     map(
         pair(
             opt(terminated(integer, repetition)),
@@ -84,8 +75,6 @@ fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, combinator::opt, sequence::pair, sequence::preceded};
-
     map(
         pair(factor, opt(preceded(exception, factor))),
         |(primary, exception)| match exception {
@@ -103,8 +92,6 @@ fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, multi::separated_list1};
-
     map(separated_list1(concatenation, term), |nodes| {
         match nodes.len() {
             1 => nodes[0].clone(),
@@ -119,8 +106,6 @@ fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    use nom::{combinator::map, multi::separated_list1};
-
     map(
         separated_list1(definition_separator, sequence),
         |nodes| match nodes.len() {
@@ -136,11 +121,6 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
-    use nom::{
-        combinator::map,
-        sequence::{pair, separated_pair},
-    };
-
     map(
         pair(
             separated_pair(identifier, definition, alternative),
@@ -158,8 +138,6 @@ fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
 }
 
 fn syntax(i: Tokens) -> IResult<Tokens, Node<Grammar>, Error> {
-    use nom::{combinator::map, multi::many1};
-
     map(many1(production), |productions| {
         let span = productions[0].span.start..productions[productions.len() - 1].span.end;
         Grammar { productions }.node_at(span)

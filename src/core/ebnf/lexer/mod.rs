@@ -1,11 +1,11 @@
+use super::scanner::Symbol;
+use error::Error;
+pub use token::{Token, TokenKind};
+
 pub mod error;
 #[cfg(test)]
 mod tests;
 pub mod token;
-
-use super::scanner::Symbol;
-use error::Error;
-pub use token::{Token, TokenKind};
 
 pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
     let mut tokens = Vec::new();

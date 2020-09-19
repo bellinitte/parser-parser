@@ -1,6 +1,4 @@
-use super::super::scanner::Symbol;
-use super::lex;
-use super::{Error, Token, TokenKind};
+use super::{lex, Error, Symbol, Token, TokenKind};
 
 fn regular<'a>(s: &'a str) -> Vec<Symbol> {
     (0..).zip(s.chars()).collect()

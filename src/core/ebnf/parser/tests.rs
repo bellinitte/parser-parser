@@ -1,7 +1,4 @@
-use super::ast::NodeAt;
-use super::Tokens;
-use super::{Expression, Grammar, Production};
-use super::{Token, TokenKind};
+use super::{Expression, Grammar, NodeAt, Production, Token, TokenKind, Tokens};
 use nom::Slice;
 
 #[macro_export]

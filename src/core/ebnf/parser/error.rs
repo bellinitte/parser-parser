@@ -1,5 +1,4 @@
-use nom::error::ErrorKind;
-use nom::error::ParseError;
+use nom::error::{ErrorKind, ParseError};
 use std::fmt;
 
 #[derive(Debug, PartialEq)]

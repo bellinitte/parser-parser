@@ -1,6 +1,6 @@
 pub mod error;
 
-use super::parser::ast::Grammar;
+use super::parser::Grammar;
 use error::Error;
 
 pub(super) fn build<'a>(_input: &Grammar) -> Result<Box<dyn Fn(&str) -> bool>, Error> {

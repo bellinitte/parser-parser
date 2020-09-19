@@ -1,5 +1,4 @@
-use std::fmt;
-use std::ops::Range;
+use std::{fmt, ops::Range};
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {

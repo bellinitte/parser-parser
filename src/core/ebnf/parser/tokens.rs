@@ -1,11 +1,13 @@
-use super::super::lexer::{Token, TokenKind};
+use super::{Token, TokenKind};
 use nom::{
     Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Slice,
     UnspecializedInput,
 };
-use std::iter::{Enumerate, Map};
-use std::ops::{Range, RangeFrom, RangeFull, RangeTo};
-use std::slice::Iter;
+use std::{
+    iter::{Enumerate, Map},
+    ops::{Range, RangeFrom, RangeFull, RangeTo},
+    slice::Iter,
+};
 
 #[derive(Debug, Clone)]
 pub struct Tokens<'a> {
@@ -238,17 +240,37 @@ macro_rules! literal {
     };
 }
 
-literal!(concatenation, TokenKind::Concatenation, Error::ConcatenationExpected);
+literal!(
+    concatenation,
+    TokenKind::Concatenation,
+    Error::ConcatenationExpected
+);
 literal!(definition, TokenKind::Definition, Error::DefinitionExpected);
-literal!(definition_separator, TokenKind::DefinitionSeparator, Error::DefinitionSeparatorExpected);
+literal!(
+    definition_separator,
+    TokenKind::DefinitionSeparator,
+    Error::DefinitionSeparatorExpected
+);
 literal!(end_group, TokenKind::EndGroup, Error::EndGroupExpected);
 literal!(end_option, TokenKind::EndOption, Error::EndOptionExpected);
 literal!(end_repeat, TokenKind::EndRepeat, Error::EndRepeatExpected);
 literal!(exception, TokenKind::Exception, Error::ExceptionExpected);
 literal!(repetition, TokenKind::Repetition, Error::RepetitionExpected);
-literal!(start_group, TokenKind::StartGroup, Error::StartGroupExpected);
-literal!(start_option, TokenKind::StartOption, Error::StartOptionExpected);
-literal!(start_repeat, TokenKind::StartRepeat, Error::StartRepeatExpected);
+literal!(
+    start_group,
+    TokenKind::StartGroup,
+    Error::StartGroupExpected
+);
+literal!(
+    start_option,
+    TokenKind::StartOption,
+    Error::StartOptionExpected
+);
+literal!(
+    start_repeat,
+    TokenKind::StartRepeat,
+    Error::StartRepeatExpected
+);
 literal!(terminator, TokenKind::Terminator, Error::TerminatorExpected);
 
 pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
