@@ -23,10 +23,10 @@ impl EbnfParserParser {
     }
 
     fn generate(input: &str) -> Result<EbnfParserParser, Error> {
-        let symbols: Vec<scanner::Symbol> = scanner::scan(input)?;
-        let tokens: Vec<lexer::Token> = lexer::lex(&symbols)?;
-        let ast: parser::Grammar = parser::parse(&tokens)?;
-        let parser = builder::build(&ast)?;
+        let symbols = scanner::scan(input)?;
+        let tokens = lexer::lex(&symbols)?;
+        let ast = parser::parse(&tokens)?;
+        let parser = builder::build(ast)?;
         Ok(EbnfParserParser { parser })
     }
 

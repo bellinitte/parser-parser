@@ -1,5 +1,5 @@
 use super::scanner::Symbol;
-use error::Error;
+use error::{Error, ErrorKind};
 pub use token::{Token, TokenKind};
 
 pub mod error;
@@ -7,7 +7,7 @@ pub mod error;
 mod tests;
 pub mod token;
 
-pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
+pub(super) fn lex<'a>(symbols: &'a [Symbol]) -> Result<Vec<Token>, Error> {
     let mut tokens = Vec::new();
     let mut i = 0;
 
@@ -20,7 +20,12 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                 Some((_, '(')) => match symbols.get(i + 1) {
                     Some((_, '*')) => {
                         match symbols.get(i + 2) {
-                            Some((_, ')')) => return Err(Error::AmbiguousSymbol),
+                            Some((_, ')')) => {
+                                return Err(Error {
+                                    kind: ErrorKind::AmbiguousSymbol,
+                                    position: i..i + 3,
+                                })
+                            }
                             _ => {}
                         }
                         i += 2;
@@ -31,7 +36,12 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                                 Some((_, '(')) => match symbols.get(i + 1) {
                                     Some((_, '*')) => {
                                         match symbols.get(i + 2) {
-                                            Some((_, ')')) => return Err(Error::AmbiguousSymbol),
+                                            Some((_, ')')) => {
+                                                return Err(Error {
+                                                    kind: ErrorKind::AmbiguousSymbol,
+                                                    position: i..i + 3,
+                                                })
+                                            }
                                             _ => {}
                                         }
                                         i += 2;
@@ -49,7 +59,12 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                                 Some(_) => {
                                     i += 1;
                                 }
-                                None => return Err(Error::UnterminatedComment),
+                                None => {
+                                    return Err(Error {
+                                        kind: ErrorKind::UnterminatedComment,
+                                        position: i - 1..i,
+                                    })
+                                }
                             };
                         }
                     }
@@ -100,7 +115,10 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                     i += 2;
                 }
                 _ => {
-                    return Err(Error::InvalidSymbol(':'));
+                    return Err(Error {
+                        kind: ErrorKind::InvalidSymbol(':'),
+                        position: i..i + 1,
+                    });
                 }
             },
             Some((o, '-')) => {
@@ -144,7 +162,10 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                     match symbols.get(i) {
                         Some((oe, c)) if c == quote => {
                             if *oe == *os + 1 {
-                                return Err(Error::EmptyTerminal);
+                                return Err(Error {
+                                    kind: ErrorKind::EmptyTerminal,
+                                    position: i - 1..i + 1,
+                                });
                             } else {
                                 tokens.push(Token::new(TokenKind::Terminal(string), *os..*oe + 1));
                                 i += 1;
@@ -155,7 +176,12 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                             string.push(*c);
                             i += 1;
                         }
-                        None => return Err(Error::UnterminatedTerminal),
+                        None => {
+                            return Err(Error {
+                                kind: ErrorKind::UnterminatedTerminal,
+                                position: i - 1..i,
+                            })
+                        }
                     }
                 }
             }
@@ -173,7 +199,12 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                             string.push(*c);
                             i += 1;
                         }
-                        None => return Err(Error::UnterminatedSpecial),
+                        None => {
+                            return Err(Error {
+                                kind: ErrorKind::UnterminatedSpecial,
+                                position: i - 1..i,
+                            })
+                        }
                     }
                 }
             }
@@ -220,7 +251,10 @@ pub(super) fn lex<'a>(symbols: &[Symbol]) -> Result<Vec<Token>, Error> {
                 }
             }
             Some((_, c)) => {
-                return Err(Error::InvalidSymbol(*c));
+                return Err(Error {
+                    kind: ErrorKind::InvalidSymbol(*c),
+                    position: i..i + 1,
+                });
             }
             None => break 'tokens,
         }

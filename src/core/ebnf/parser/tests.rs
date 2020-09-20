@@ -58,7 +58,7 @@ fn test_factors() {
         1,
         Expression::Special(" special ".to_owned()).node_at(2..13)
     );
-    ok_case!(factor, &vec![], 0, Expression::Empty.node_at(0..0));
+    ok_case!(factor, &vec![], 0, Expression::Empty.node_at(0..1));
     ok_case!(
         factor,
         &vec![

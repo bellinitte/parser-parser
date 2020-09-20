@@ -12,7 +12,7 @@
             let parser = new core.EbnfParserParser(parseInput);
             output = parser.check(checkInput);
         } catch (e) {
-            output = e;
+            output = e.kind + ' at position ' + e.position.start;
         }
     }
 </script>

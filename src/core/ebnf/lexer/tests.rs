@@ -1,4 +1,4 @@
-use super::{lex, Error, Symbol, Token, TokenKind};
+use super::{lex, Error, ErrorKind, Symbol, Token, TokenKind};
 
 fn regular<'a>(s: &'a str) -> Vec<Symbol> {
     (0..).zip(s.chars()).collect()
@@ -79,10 +79,34 @@ fn test_terminals() {
             2..8
         )])
     );
-    assert_eq!(lex(&regular(" ' a \"")), Err(Error::UnterminatedTerminal));
-    assert_eq!(lex(&regular("\"bbb'   ")), Err(Error::UnterminatedTerminal));
-    assert_eq!(lex(&regular("\"\"")), Err(Error::EmptyTerminal));
-    assert_eq!(lex(&regular("''")), Err(Error::EmptyTerminal));
+    assert_eq!(
+        lex(&regular(" ' a \"")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedTerminal,
+            position: 5..6,
+        })
+    );
+    assert_eq!(
+        lex(&regular("\"bbb'   ")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedTerminal,
+            position: 7..8,
+        })
+    );
+    assert_eq!(
+        lex(&regular("\"\"")),
+        Err(Error {
+            kind: ErrorKind::EmptyTerminal,
+            position: 0..2,
+        })
+    );
+    assert_eq!(
+        lex(&regular("''")),
+        Err(Error {
+            kind: ErrorKind::EmptyTerminal,
+            position: 0..2,
+        })
+    );
     //     ok_case!(
     //         terminal,
     //         "'a string'",
@@ -128,7 +152,13 @@ fn test_specials() {
             0..6
         )])
     );
-    assert_eq!(lex(&regular(" ?bbb  ")), Err(Error::UnterminatedSpecial));
+    assert_eq!(
+        lex(&regular(" ?bbb  ")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedSpecial,
+            position: 6..7,
+        })
+    );
     assert_eq!(
         lex(&regular("??")),
         Ok(vec![Token::new(TokenKind::Special("".to_owned()), 0..2)])
@@ -247,7 +277,13 @@ fn test_nonterminals() {
 
 #[test]
 fn test_invalid_symbols() {
-    assert_eq!(lex(&regular(" + ")), Err(Error::InvalidSymbol('+')));
+    assert_eq!(
+        lex(&regular(" + ")),
+        Err(Error {
+            kind: ErrorKind::InvalidSymbol('+'),
+            position: 1..2,
+        })
+    );
 }
 
 #[test]
@@ -278,8 +314,20 @@ fn test_comments() {
             Token::new(TokenKind::Concatenation, 19..20),
         ])
     );
-    assert_eq!(lex(&regular(" (* (* *) ")), Err(Error::UnterminatedComment));
-    assert_eq!(lex(&regular(" (*) ")), Err(Error::AmbiguousSymbol));
+    assert_eq!(
+        lex(&regular(" (* (* *) ")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedComment,
+            position: 9..10,
+        })
+    );
+    assert_eq!(
+        lex(&regular(" (*) ")),
+        Err(Error {
+            kind: ErrorKind::AmbiguousSymbol,
+            position: 1..4,
+        })
+    );
 }
 
 #[test]

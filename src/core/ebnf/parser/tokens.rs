@@ -1,4 +1,4 @@
-use super::{Token, TokenKind};
+use super::Token;
 use nom::{
     Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Slice,
     UnspecializedInput,
@@ -21,6 +21,10 @@ impl<'a> Tokens<'a> {
             inner: tokens,
             offset: 0,
         }
+    }
+
+    pub fn offset(&self) -> usize {
+        self.offset
     }
 }
 
@@ -217,145 +221,4 @@ impl<'a> FindSubstring<&'a [Token]> for Tokens<'a> {
             None
         }
     }
-}
-
-use super::Error;
-use super::NodeAt;
-use super::{Expression, Node};
-use nom::Err;
-use nom::IResult;
-
-#[macro_export]
-macro_rules! literal {
-    ($name:ident, $kind:pat, $error:expr) => {
-        pub fn $name(i: Tokens) -> IResult<Tokens, Node<TokenKind>, Error> {
-            match i.iter_elements().next() {
-                Some(Token {
-                    kind: kind @ $kind,
-                    span,
-                }) => Ok((i.slice(1..), kind.node_at(span))),
-                _ => Err(Err::Error($error)),
-            }
-        }
-    };
-}
-
-literal!(
-    concatenation,
-    TokenKind::Concatenation,
-    Error::ConcatenationSymbolExpected
-);
-literal!(
-    definition,
-    TokenKind::Definition,
-    Error::DefinitionSymbolExpected
-);
-literal!(
-    definition_separator,
-    TokenKind::DefinitionSeparator,
-    Error::DefinitionSeparatorSymbolExpected
-);
-literal!(
-    end_group,
-    TokenKind::EndGroup,
-    Error::EndGroupSymbolExpected
-);
-literal!(
-    end_option,
-    TokenKind::EndOption,
-    Error::EndOptionSymbolExpected
-);
-literal!(
-    end_repeat,
-    TokenKind::EndRepeat,
-    Error::EndRepeatSymbolExpected
-);
-literal!(
-    exception,
-    TokenKind::Exception,
-    Error::ExceptionSymbolExpected
-);
-literal!(
-    repetition,
-    TokenKind::Repetition,
-    Error::RepetitionSymbolExpected
-);
-literal!(
-    start_group,
-    TokenKind::StartGroup,
-    Error::StartGroupSymbolExpected
-);
-literal!(
-    start_option,
-    TokenKind::StartOption,
-    Error::StartOptionSymbolExpected
-);
-literal!(
-    start_repeat,
-    TokenKind::StartRepeat,
-    Error::StartRepeatSymbolExpected
-);
-literal!(
-    terminator,
-    TokenKind::Terminator,
-    Error::TerminatorSymbolExpected
-);
-
-pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
-    match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Nonterminal(s),
-            span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
-        _ => Err(Err::Error(Error::IdentifierExpected)),
-    }
-}
-
-pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Nonterminal(s),
-            span,
-        }) => Ok((i.slice(1..), Expression::Nonterminal(s).node_at(span))),
-        _ => Err(Err::Error(Error::NonterminalExpected)),
-    }
-}
-
-pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Terminal(s),
-            span,
-        }) => Ok((i.slice(1..), Expression::Terminal(s).node_at(span))),
-        _ => Err(Err::Error(Error::TerminalExpected)),
-    }
-}
-
-pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Special(s),
-            span,
-        }) => Ok((i.slice(1..), Expression::Special(s).node_at(span))),
-        _ => Err(Err::Error(Error::SpecialExpected)),
-    }
-}
-
-pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
-    match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Integer(s),
-            span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
-        _ => Err(Err::Error(Error::IntegerExpected)),
-    }
-}
-
-pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    let start = i.offset;
-    let end = match i.iter_elements().next() {
-        Some(token) => token.span.start,
-        None => start,
-    };
-    Ok((i, Expression::Empty.node_at(start..end)))
 }

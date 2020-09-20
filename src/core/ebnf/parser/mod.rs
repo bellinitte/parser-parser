@@ -1,6 +1,6 @@
 use super::lexer::{Token, TokenKind};
 pub use ast::{Expression, Grammar, Node, NodeAt, Production};
-use error::Error;
+use error::{Error, ErrorKind};
 use nom::{
     branch::alt,
     combinator::map,
@@ -8,7 +8,6 @@ use nom::{
     multi::{many1, separated_list1},
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
-    error::ErrorKind
 };
 use tokens::*;
 use utils::*;
@@ -22,14 +21,14 @@ mod utils;
 
 fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_group, alternative, end_group)),
+        tuple((start_group_symbol, alternative, end_group_symbol)),
         |(open, node, close)| node.inner.node_at(open.span.start..close.span.end),
     )(i)
 }
 
 fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_repeat, alternative, end_repeat)),
+        tuple((start_repeat_symbol, alternative, end_repeat_symbol)),
         |(open, node, close)| {
             Expression::Repeated(Box::new(node)).node_at(open.span.start..close.span.end)
         },
@@ -38,7 +37,7 @@ fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 
 fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_option, alternative, end_option)),
+        tuple((start_option_symbol, alternative, end_option_symbol)),
         |(open, node, close)| {
             Expression::Optional(Box::new(node)).node_at(open.span.start..close.span.end)
         },
@@ -48,7 +47,7 @@ fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
         pair(
-            opt(terminated(integer, repetition)),
+            opt(terminated(integer, repetition_symbol)),
             alt((
                 optional,
                 repeated,
@@ -79,7 +78,7 @@ fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 
 fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        pair(factor, opt(preceded(exception, factor))),
+        pair(factor, opt(preceded(exception_symbol, factor))),
         |(primary, exception)| match exception {
             None => primary,
             Some(ex) => {
@@ -95,8 +94,9 @@ fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 }
 
 fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
-    map(separated_list1(concatenation, term), |nodes| {
-        match nodes.len() {
+    map(
+        separated_list1(concatenation_symbol, term),
+        |nodes| match nodes.len() {
             1 => nodes[0].clone(),
             _ => Expression::Sequence {
                 first: Box::new(nodes[0].clone()),
@@ -104,8 +104,8 @@ fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
                 rest: nodes[2..].to_vec(),
             }
             .node_at(nodes[0].span.start..nodes[nodes.len() - 1].span.end),
-        }
-    })(i)
+        },
+    )(i)
 }
 
 fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
@@ -123,7 +123,13 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
             },
         ),
         |e| match e {
-            Error::Nom(ErrorKind::SeparatedList) => Error::DefinitionExpected,
+            Error {
+                kind: ErrorKind::Nom(nom::error::ErrorKind::SeparatedList),
+                position,
+            } => Error {
+                kind: ErrorKind::DefinitionExpected,
+                position,
+            },
             e => e,
         },
     )(i)
@@ -132,8 +138,8 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
     map(
         pair(
-            separated_pair(identifier, definition, alternative),
-            terminator,
+            separated_pair(identifier, definition_symbol, alternative),
+            terminator_symbol,
         ),
         |((identifier, definitions), terminator)| {
             let span = identifier.span.start..terminator.span.end;
@@ -153,8 +159,8 @@ fn syntax(i: Tokens) -> IResult<Tokens, Node<Grammar>, Error> {
     })(i)
 }
 
-pub(super) fn parse<'a>(input: &[Token]) -> Result<Grammar, Error> {
-    match syntax(Tokens::new(input)) {
+pub(super) fn parse<'a>(tokens: &'a [Token]) -> Result<Grammar, Error> {
+    match syntax(Tokens::new(&tokens)) {
         Ok((_, grammar)) => Ok(grammar.inner),
         Err(nom::Err::Failure(inner)) => Err(inner.into()),
         Err(nom::Err::Error(inner)) => Err(inner.into()),

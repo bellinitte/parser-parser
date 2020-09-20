@@ -1,9 +1,15 @@
-use error::Error;
+use error::{Error, ErrorKind};
 use unicode_segmentation::UnicodeSegmentation;
 
 pub mod error;
 
 pub(super) type Symbol = (usize, char);
+
+#[derive(Debug, Clone)]
+pub struct Symbols {
+    symbols: Vec<Symbol>,
+    len: usize,
+}
 
 pub(super) fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
     string
@@ -13,7 +19,10 @@ pub(super) fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
         .flatten()
         .map(|(i, c)| -> Result<(usize, char), Error> {
             if c.is_control() && !c.is_whitespace() {
-                Err(Error::ControlCharacter(c))
+                Err(Error {
+                    kind: ErrorKind::ControlCharacter(c),
+                    position: i,
+                })
             } else {
                 Ok((i, c))
             }
@@ -24,7 +33,7 @@ pub(super) fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
 #[cfg(test)]
 mod tests {
     use super::scan;
-    use super::Error;
+    use super::{Error, ErrorKind};
 
     #[test]
     fn test_control_characters() {
@@ -32,7 +41,10 @@ mod tests {
 
         assert_eq!(
             scan(str::from_utf8(&[0x41, 0x01, 0x02, 0x42]).unwrap()),
-            Err(Error::ControlCharacter('\u{1}'))
+            Err(Error {
+                kind: ErrorKind::ControlCharacter('\u{1}'),
+                position: 1,
+            })
         );
         assert_eq!(
             scan(str::from_utf8(&[0x0a, 0x0d]).unwrap()),

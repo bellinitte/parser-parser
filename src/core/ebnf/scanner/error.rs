@@ -1,14 +1,20 @@
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub enum Error {
+pub struct Error {
+    pub kind: ErrorKind,
+    pub position: usize,
+}
+
+#[derive(Debug, PartialEq)]
+pub enum ErrorKind {
     ControlCharacter(char),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Error::ControlCharacter(c) => write!(f, "control character {:#x?}", c),
+        match self.kind {
+            ErrorKind::ControlCharacter(c) => write!(f, "control character {:#x?}", c),
         }
     }
 }
