@@ -48,6 +48,13 @@ fn test_options() {
             Token::new(TokenKind::EndOption, 9..10)
         ])
     );
+    assert_eq!(
+        lex(&regular(" (/) ")),
+        Err(Error {
+            kind: ErrorKind::InvalidSymbol("(/)".to_owned()),
+            position: 1..4,
+        })
+    );
 }
 
 #[test]
@@ -60,6 +67,13 @@ fn test_repeats() {
             Token::new(TokenKind::StartRepeat, 5..6),
             Token::new(TokenKind::EndRepeat, 7..8)
         ])
+    );
+    assert_eq!(
+        lex(&regular(" (:) ")),
+        Err(Error {
+            kind: ErrorKind::InvalidSymbol("(:)".to_owned()),
+            position: 1..4,
+        })
     );
 }
 
@@ -280,7 +294,7 @@ fn test_invalid_symbols() {
     assert_eq!(
         lex(&regular(" + ")),
         Err(Error {
-            kind: ErrorKind::InvalidSymbol('+'),
+            kind: ErrorKind::InvalidSymbol('+'.to_string()),
             position: 1..2,
         })
     );
@@ -324,7 +338,7 @@ fn test_comments() {
     assert_eq!(
         lex(&regular(" (*) ")),
         Err(Error {
-            kind: ErrorKind::AmbiguousSymbol,
+            kind: ErrorKind::InvalidSymbol("(*)".to_owned()),
             position: 1..4,
         })
     );

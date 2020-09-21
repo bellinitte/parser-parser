@@ -3,8 +3,7 @@ pub use ast::{Expression, Grammar, Node, NodeAt, Production};
 use error::{Error, ErrorKind};
 use nom::{
     branch::alt,
-    combinator::map,
-    combinator::opt,
+    combinator::{cut, map, opt},
     multi::{many1, separated_list1},
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
@@ -21,14 +20,14 @@ mod utils;
 
 fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_group_symbol, alternative, end_group_symbol)),
+        tuple((start_group_symbol, alternative, cut(end_group_symbol))),
         |(open, node, close)| node.inner.node_at(open.span.start..close.span.end),
     )(i)
 }
 
 fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_repeat_symbol, alternative, end_repeat_symbol)),
+        tuple((start_repeat_symbol, alternative, cut(end_repeat_symbol))),
         |(open, node, close)| {
             Expression::Repeated(Box::new(node)).node_at(open.span.start..close.span.end)
         },
@@ -37,7 +36,7 @@ fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 
 fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        tuple((start_option_symbol, alternative, end_option_symbol)),
+        tuple((start_option_symbol, alternative, cut(end_option_symbol))),
         |(open, node, close)| {
             Expression::Optional(Box::new(node)).node_at(open.span.start..close.span.end)
         },
@@ -47,7 +46,7 @@ fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
         pair(
-            opt(terminated(integer, repetition_symbol)),
+            opt(terminated(integer, cut(repetition_symbol))),
             alt((
                 optional,
                 repeated,
@@ -78,7 +77,7 @@ fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 
 fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     map(
-        pair(factor, opt(preceded(exception_symbol, factor))),
+        pair(factor, opt(preceded(exception_symbol, cut(factor)))),
         |(primary, exception)| match exception {
             None => primary,
             Some(ex) => {
@@ -138,8 +137,8 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
     map(
         pair(
-            separated_pair(identifier, definition_symbol, alternative),
-            terminator_symbol,
+            separated_pair(identifier, cut(definition_symbol), alternative),
+            cut(terminator_symbol),
         ),
         |((identifier, definitions), terminator)| {
             let span = identifier.span.start..terminator.span.end;
@@ -153,10 +152,22 @@ fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
 }
 
 fn syntax(i: Tokens) -> IResult<Tokens, Node<Grammar>, Error> {
-    map(many1(production), |productions| {
-        let span = productions[0].span.start..productions[productions.len() - 1].span.end;
-        Grammar { productions }.node_at(span)
-    })(i)
+    map_err(
+        map(cut(many1(production)), |productions| {
+            let span = productions[0].span.start..productions[productions.len() - 1].span.end;
+            Grammar { productions }.node_at(span)
+        }),
+        |e| match e {
+            Error {
+                kind: ErrorKind::Nom(nom::error::ErrorKind::Many1),
+                position,
+            } => Error {
+                kind: ErrorKind::AtLeastOneProductionRuleRequired,
+                position,
+            },
+            e => e,
+        },
+    )(i)
 }
 
 pub(super) fn parse<'a>(tokens: &'a [Token]) -> Result<Grammar, Error> {

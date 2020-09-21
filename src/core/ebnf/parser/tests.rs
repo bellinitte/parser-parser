@@ -1,5 +1,5 @@
-use super::{Expression, Grammar, NodeAt, Production, Token, TokenKind, Tokens};
-use nom::Slice;
+use super::{Error, ErrorKind, Expression, Grammar, NodeAt, Production, Token, TokenKind, Tokens};
+use nom::{Err, Slice};
 
 #[macro_export]
 macro_rules! ok_case {
@@ -16,14 +16,14 @@ macro_rules! ok_case {
 #[macro_export]
 macro_rules! error_case {
     ($parser:expr, $input_str:expr, $error:expr) => {
-        assert_eq!($parser(Span::new($input_str)), Err(Err::Error($error)));
+        assert_eq!($parser(Tokens::new($input_str)), Err(Err::Error($error)));
     };
 }
 
 #[macro_export]
 macro_rules! failure_case {
     ($parser:expr, $input_str:expr, $error:expr) => {
-        assert_eq!($parser(Span::new($input_str)), Err(Err::Failure($error)));
+        assert_eq!($parser(Tokens::new($input_str)), Err(Err::Failure($error)));
     };
 }
 
@@ -58,7 +58,7 @@ fn test_factors() {
         1,
         Expression::Special(" special ".to_owned()).node_at(2..13)
     );
-    ok_case!(factor, &vec![], 0, Expression::Empty.node_at(0..1));
+    ok_case!(factor, &vec![], 0, Expression::Empty.node_at(0..0));
     ok_case!(
         factor,
         &vec![
@@ -73,14 +73,16 @@ fn test_factors() {
         }
         .node_at(0..14)
     );
-    ok_case!(
+    failure_case!(
         factor,
         &vec![
             Token::new(TokenKind::Integer(2), 0..1),
             Token::new(TokenKind::Terminal("terminal".to_owned()), 2..12)
         ],
-        0,
-        Expression::Empty.node_at(0..0)
+        Error {
+            kind: ErrorKind::RepetitionSymbolExpected,
+            position: 2..12
+        }
     );
 }
 

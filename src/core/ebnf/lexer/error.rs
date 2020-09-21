@@ -8,8 +8,7 @@ pub struct Error {
 
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
-    InvalidSymbol(char),
-    AmbiguousSymbol,
+    InvalidSymbol(String),
     UnterminatedSpecial,
     UnterminatedComment,
     UnterminatedTerminal,
@@ -18,9 +17,8 @@ pub enum ErrorKind {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            ErrorKind::InvalidSymbol(c) => write!(f, "invalid symbol '{}'", c),
-            ErrorKind::AmbiguousSymbol => write!(f, "ambiguous symbol '(*)'"),
+        match &self.kind {
+            ErrorKind::InvalidSymbol(s) => write!(f, "invalid symbol `{}`", s),
             ErrorKind::UnterminatedSpecial => write!(f, "unterminated special sequence"),
             ErrorKind::UnterminatedComment => write!(f, "unterminated comment"),
             ErrorKind::UnterminatedTerminal => write!(f, "unterminated terminal symbol"),

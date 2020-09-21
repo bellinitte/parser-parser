@@ -16,7 +16,7 @@ macro_rules! literal {
                 })),
                 None => Err(Err::Error(Error {
                     kind: $error,
-                    position: i.offset()..i.offset() + 1,
+                    position: i.last_span(),
                 })),
             }
         }
@@ -96,7 +96,7 @@ pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::IdentifierExpected,
-            position: i.offset()..i.offset() + 1,
+            position: i.last_span(),
         })),
     }
 }
@@ -113,7 +113,7 @@ pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::NonterminalExpected,
-            position: i.offset()..i.offset() + 1,
+            position: i.last_span(),
         })),
     }
 }
@@ -130,7 +130,7 @@ pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::TerminalExpected,
-            position: i.offset()..i.offset() + 1,
+            position: i.last_span(),
         })),
     }
 }
@@ -147,7 +147,7 @@ pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::SpecialExpected,
-            position: i.offset()..i.offset() + 1,
+            position: i.last_span(),
         })),
     }
 }
@@ -164,15 +164,15 @@ pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::IntegerExpected,
-            position: i.offset()..i.offset() + 1,
+            position: i.last_span(),
         })),
     }
 }
 
 pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     let span = match i.iter_elements().next() {
-        Some(token) => i.offset()..token.span.start,
-        None => i.offset()..i.offset() + 1,
+        Some(token) => i.last_span().end..token.span.start,
+        None => i.last_span(),
     };
     Ok((i, Expression::Empty.node_at(span)))
 }

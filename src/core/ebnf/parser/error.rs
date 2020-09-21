@@ -10,6 +10,7 @@ pub struct Error {
 
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
+    AtLeastOneProductionRuleRequired,
     DefinitionExpected,
     IdentifierExpected,
     NonterminalExpected,
@@ -35,7 +36,7 @@ impl<'a> nom::error::ParseError<Tokens<'a>> for Error {
     fn from_error_kind(input: Tokens<'a>, e: nom::error::ErrorKind) -> Self {
         let position = match input.iter_elements().next() {
             Some(token) => token.span,
-            None => input.offset()..input.offset() + 1,
+            None => input.last_span(),
         };
         Error {
             kind: ErrorKind::Nom(e),
@@ -51,6 +52,9 @@ impl<'a> nom::error::ParseError<Tokens<'a>> for Error {
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
+            ErrorKind::AtLeastOneProductionRuleRequired => {
+                write!(f, "at least one production rule required")
+            }
             ErrorKind::DefinitionExpected => write!(f, "definition expected"),
             ErrorKind::IdentifierExpected => write!(f, "identifier expected"),
             ErrorKind::NonterminalExpected => write!(f, "nonterminal expected"),
