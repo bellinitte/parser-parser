@@ -152,22 +152,10 @@ fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
 }
 
 fn syntax(i: Tokens) -> IResult<Tokens, Node<Grammar>, Error> {
-    map_err(
-        map(cut(many1(production)), |productions| {
-            let span = productions[0].span.start..productions[productions.len() - 1].span.end;
-            Grammar { productions }.node_at(span)
-        }),
-        |e| match e {
-            Error {
-                kind: ErrorKind::Nom(nom::error::ErrorKind::Many1),
-                position,
-            } => Error {
-                kind: ErrorKind::AtLeastOneProductionRuleRequired,
-                position,
-            },
-            e => e,
-        },
-    )(i)
+    map(many1(production), |productions| {
+        let span = productions[0].span.start..productions[productions.len() - 1].span.end;
+        Grammar { productions }.node_at(span)
+    })(i)
 }
 
 pub(super) fn parse<'a>(tokens: &'a [Token]) -> Result<Grammar, Error> {

@@ -38,7 +38,9 @@ pub(super) fn lex<'a>(symbols: &'a [Symbol]) -> Result<Vec<Token>, Error> {
                                         match symbols.get(i + 2) {
                                             Some((_, ')')) => {
                                                 return Err(Error {
-                                                    kind: ErrorKind::InvalidSymbol("(*)".to_owned()),
+                                                    kind: ErrorKind::InvalidSymbol(
+                                                        "(*)".to_owned(),
+                                                    ),
                                                     position: i..i + 3,
                                                 })
                                             }
@@ -136,24 +138,24 @@ pub(super) fn lex<'a>(symbols: &'a [Symbol]) -> Result<Vec<Token>, Error> {
                             kind: ErrorKind::InvalidSymbol("(/)".to_owned()),
                             position: i..i + 3,
                         });
-                    },
+                    }
                     _ => {
                         tokens.push(Token::new(TokenKind::StartOption, *o..*o + 2));
                         i += 2;
                     }
-                }
+                },
                 Some((_, ':')) => match symbols.get(i + 2) {
                     Some((_, ')')) => {
                         return Err(Error {
                             kind: ErrorKind::InvalidSymbol("(:)".to_owned()),
                             position: i..i + 3,
                         });
-                    },
+                    }
                     _ => {
                         tokens.push(Token::new(TokenKind::StartRepeat, *o..*o + 2));
                         i += 2;
                     }
-                }
+                },
                 _ => {
                     tokens.push(Token::new(TokenKind::StartGroup, *o..*o + 2));
                     i += 1;
