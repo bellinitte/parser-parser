@@ -1,14 +1,14 @@
-import { render } from '@testing-library/svelte'
-import App from '../src/site/App.svelte';
+import { render } from "@testing-library/svelte";
+import App from "../src/site/App.svelte";
 
 const core = {
-  parse: _ => "None",
+    parse: (_) => "None",
 };
 
 it('displays "Parser-parser"', async () => {
-  const { getByRole } = render(App, { core: core });
+    const { getByRole } = render(App, { core: core });
 
-  const h1 = getByRole('heading')
+    const h1 = getByRole("heading");
 
-  expect(h1.textContent).toBe('Parser-parser')
+    expect(h1.textContent).toBe("Parser-parser");
 });

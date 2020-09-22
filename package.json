@@ -23,6 +23,7 @@
     "build": "rimraf dist && rollup -c",
     "start": "rimraf dist && rollup -c -w",
     "test": "cargo test && wasm-pack test --node && jest",
+    "fmt": "cargo fmt && prettier --write --plugin-search-dir=. .",
     "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
@@ -39,6 +40,8 @@
     "gh-pages": "^3.1.0",
     "jest": "^26.1.0",
     "jest-transform-svelte": "^2.1.1",
+    "prettier": "^2.1.2",
+    "prettier-plugin-svelte": "^1.2.1",
     "rimraf": "^3.0.0",
     "rollup": "^2.3.4",
     "rollup-plugin-copy": "^3.3.0",
