@@ -1,8 +1,31 @@
 <script>
     import CodeMirror from "./CodeMirror.svelte";
 
-    let editor;
-    export let errorLoc;
+    export let core;
+    let parseEditor;
+    let output = "";
+    let errorLocation;
+
+    function handle_change(event) {
+        try {
+            let parser = new core.EbnfParserParser(event.detail.value);
+            output = parser.check("test");
+            errorLocation = null;
+        } catch (e) {
+            console.log(e);
+            output = e.kind + " at position " + e.position.start;
+            errorLocation = {
+                start: {
+                    line: 1,
+                    column: e.position.start + 1
+                },
+                end: {
+                    line: 1,
+                    column: e.position.end + 1
+                }
+            }
+        }
+    }
 </script>
 
 <style>
@@ -35,5 +58,6 @@
 </style>
 
 <div class="container">
-    <CodeMirror bind:this="{editor}" errorLoc="{errorLoc}" />
+    <CodeMirror bind:this="{parseEditor}" errorLocation="{errorLocation}" on:change={handle_change} />
 </div>
+<p>{output}</p>

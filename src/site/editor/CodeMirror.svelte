@@ -3,7 +3,7 @@
     const dispatch = createEventDispatcher();
 
     export let readonly = false;
-    export let errorLoc = null;
+    export let errorLocation = null;
     export let flex = false;
     export let lineNumbers = true;
     export let tab = true;
@@ -18,11 +18,11 @@
     // without resetting scroll otherwise
     export async function set(new_code) {
         code = new_code;
-        updating_externally = true;
+        updatingExternally = true;
         if (editor) {
 			editor.setValue(code);
 		}
-        updating_externally = false;
+        updatingExternally = false;
 	}
 	
     export function update(new_code) {
@@ -56,9 +56,8 @@
 	
 	let textAreaRef;
     let editor;
-    let updating_externally = false;
+    let updatingExternally = false;
     let marker;
-    let error_line;
     let destroyed = false;
 	let codeMirror;
 	
@@ -70,32 +69,14 @@
         if (marker) {
 			marker.clear();
 		}
-        if (errorLoc && editor) {
-            const line = errorLoc.line - 1;
-            const ch = errorLoc.column;
+        if (errorLocation) {
             marker = editor.markText(
-                { line, ch },
-                { line, ch: ch + 1 },
+                { line: errorLocation.start.line - 1, ch: errorLocation.start.column - 1 },
+                { line: errorLocation.end.line - 1, ch: errorLocation.end.column - 1 },
                 {
                     className: "error-loc",
                 }
             );
-            error_line = line;
-        } else {
-            error_line = null;
-        }
-	}
-	
-	let previous_error_line;
-	
-    $: if (editor) {
-        if (previous_error_line !== null) {
-            editor.removeLineClass(previous_error_line, "wrap", "error-line");
-		}
-		
-        if (error_line !== null && error_line !== previous_error_line) {
-            editor.addLineClass(error_line, "wrap", "error-line");
-			previous_error_line = error_line;
         }
 	}
 	
@@ -161,7 +142,7 @@
 		
         editor = codeMirror.fromTextArea(textAreaRef, opts);
         editor.on("change", instance => {
-            if (!updating_externally) {
+            if (!updatingExternally) {
                 const value = instance.getValue();
                 dispatch("change", { value });
             }
