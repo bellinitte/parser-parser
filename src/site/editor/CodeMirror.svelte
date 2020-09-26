@@ -3,15 +3,16 @@
     const dispatch = createEventDispatcher();
 
     export let readonly = false;
-    export let errorLocation = null;
+    // export let error = null;
     export let flex = false;
     export let lineNumbers = true;
     export let tab = true;
+    export let lint = null;
 
     let w;
     let h;
     let code = "";
-	
+
     // We have to expose set and update methods, rather
     // than making this state-driven through props,
     // because it's difficult to update an editor
@@ -20,11 +21,11 @@
         code = new_code;
         updatingExternally = true;
         if (editor) {
-			editor.setValue(code);
-		}
+            editor.setValue(code);
+        }
         updatingExternally = false;
-	}
-	
+    }
+
     export function update(new_code) {
         code = new_code;
         if (editor) {
@@ -32,90 +33,117 @@
             editor.setValue((code = new_code));
             editor.scrollTo(left, top);
         }
-	}
-	
+    }
+
     export function resize() {
         editor.refresh();
-	}
-	
+    }
+
     export function focus() {
         editor.focus();
-	}
-	
+    }
+
     export function getHistory() {
         return editor.getHistory();
-	}
-	
+    }
+
     export function setHistory(history) {
         editor.setHistory(history);
-	}
-	
+    }
+
     export function clearHistory() {
         if (editor) editor.clearHistory();
-	}
-	
-	let textAreaRef;
+    }
+
+    let textAreaRef;
     let editor;
     let updatingExternally = false;
     let marker;
     let destroyed = false;
-	let codeMirror;
-	
+    let codeMirror;
+
     $: if (editor && w && h) {
         editor.refresh();
-	}
-	
-    $: {
-        if (marker) {
-			marker.clear();
-		}
-        if (errorLocation) {
-            marker = editor.markText(
-                { line: errorLocation.start.line - 1, ch: errorLocation.start.column - 1 },
-                { line: errorLocation.end.line - 1, ch: errorLocation.end.column - 1 },
-                {
-                    className: "error-loc",
-                }
-            );
-        }
-	}
-	
+    }
+
+    // $: {
+    //     if (marker) {
+    //         marker.clear();
+    //     }
+    //     if (error) {
+    //         marker = editor.markText(
+    //             {
+    //                 line: error.location.start.line - 1,
+    //                 ch: error.location.start.column - 1,
+    //             },
+    //             {
+    //                 line: error.location.end.line - 1,
+    //                 ch: error.location.end.column - 1,
+    //             },
+    //             {
+    //                 className: "error-loc",
+    //             }
+    //         );
+    //     }
+    // }
+
+    // var widgets = [];
+
+    // $: {
+    //     for (var i = 0; i < widgets.length; ++i) {
+    //         editor.removeLineWidget(widgets[i]);
+    //     }
+    //     widgets = [];
+
+    //     if (error) {
+    //         var msg = document.createElement("div");
+    //         msg.appendChild(document.createTextNode(error.message));
+    //         msg.className = "lint-error";
+    //         widgets.push(
+    //             editor.addLineWidget(error.location.start.line - 1, msg, {
+    //                 coverGutter: false,
+    //                 noHScroll: true,
+    //             })
+    //         );
+    //     }
+    // }
+
     onMount(() => {
         (async () => {
             let mod = await import("./codemirror.js");
             codeMirror = mod.default;
             await createEditor("ebnf");
             if (editor) editor.setValue(code || "");
-		})();
-		
+        })();
+
         return () => {
             destroyed = true;
             if (editor) editor.toTextArea();
         };
-	});
-	
-	let first = true;
-	
+    });
+
+    let first = true;
+
     async function createEditor(mode) {
         if (destroyed || !codeMirror) {
-			return;
-		}
+            return;
+        }
 
-		if (editor) {
-			editor.toTextArea();
-		}
-		
+        if (editor) {
+            editor.toTextArea();
+        }
+
         const opts = {
             lineNumbers,
             lineWrapping: true,
             indentWithTabs: true,
             indentUnit: 2,
-			tabSize: 2,
-			tabIndex: 4,
+            tabSize: 2,
+            tabIndex: 4,
             value: "",
             mode: {
-				name: mode,
-			},
+                name: mode,
+            },
             readOnly: readonly,
             autoCloseBrackets: true,
             autoCloseTags: true,
@@ -124,40 +152,44 @@
                 "Ctrl-/": "toggleComment",
                 "Cmd-/": "toggleComment",
             },
-		};
-		
+            lint: lint ? {
+                getAnnotations: lint,
+                delay: Number.EPSILON,
+            } : false,
+        };
+
         if (!tab) {
             opts.extraKeys["Tab"] = tab;
             opts.extraKeys["Shift-Tab"] = tab;
-		}
-		
+        }
+
         // Creating a text editor is a lot of work, so we yield
         // the main thread for a moment. This helps reduce jank
         if (first) {
-			await sleep(50);
-		}
-		if (destroyed) {
-			return;
-		}
-		
+            await sleep(50);
+        }
+        if (destroyed) {
+            return;
+        }
+
         editor = codeMirror.fromTextArea(textAreaRef, opts);
-        editor.on("change", instance => {
+        editor.on("change", (instance) => {
             if (!updatingExternally) {
                 const value = instance.getValue();
                 dispatch("change", { value });
             }
-		});
-		
-		if (first) {
-			await sleep(50);
-		}
-		
+        });
+
+        if (first) {
+            await sleep(50);
+        }
+
         editor.refresh();
         first = false;
-	}
-	
+    }
+
     function sleep(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
+        return new Promise((resolve) => setTimeout(resolve, ms));
     }
 </script>
 
@@ -169,40 +201,40 @@
         border: none;
         line-height: 1.5;
         overflow: hidden;
-	}
-	
+    }
+
     .codemirror-container :global(.CodeMirror) {
         height: 100%;
         background: transparent;
         font: 400 14px/1.7 monospace;
         color: var(--base);
-	}
-	
+    }
+
     .codemirror-container.flex :global(.CodeMirror) {
         height: auto;
-	}
-	
+    }
+
     .codemirror-container.flex :global(.CodeMirror-lines) {
         padding: 0;
-	}
-	
+    }
+
     .codemirror-container :global(.CodeMirror-gutters) {
         padding: 0 16px 0 8px;
         border: none;
-	}
-	
+    }
+
     .codemirror-container :global(.error-loc) {
         position: relative;
         border-bottom: 2px solid #da106e;
-	}
-	
+    }
+
     .codemirror-container :global(.error-line) {
         background-color: rgba(200, 0, 0, 0.05);
-	}
-	
+    }
+
     textarea {
         visibility: hidden;
-	}
+    }
 </style>
 
 <div
@@ -211,8 +243,5 @@
     bind:offsetWidth="{w}"
     bind:offsetHeight="{h}"
 >
-    <textarea
-        bind:this="{textAreaRef}"
-        readonly
-    ></textarea>
+    <textarea bind:this="{textAreaRef}" readonly></textarea>
 </div>
