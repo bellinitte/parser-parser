@@ -1,7 +1,8 @@
 use wasm_bindgen::prelude::*;
-use crate::core::ebnf;
+use ebnf_parser_parser as ebnf;
+use crate::core::error::Error;
 
-pub mod core;
+mod core;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
@@ -20,7 +21,7 @@ impl EbnfParserParser {
             Ok(parser_parser) => Ok(EbnfParserParser {
                 parser: parser_parser,
             }),
-            Err(e) => Err(e.into()),
+            Err(e) => Err(Error::from(e).into()),
         }
     }
 

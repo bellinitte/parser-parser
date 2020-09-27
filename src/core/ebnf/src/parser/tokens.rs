@@ -1,7 +1,7 @@
 use super::Token;
 use nom::{
     Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Slice,
-    UnspecializedInput,
+    UnspecializedInput, Needed
 };
 use std::{
     iter::{Enumerate, Map},
@@ -70,11 +70,11 @@ impl<'a> InputIter for Tokens<'a> {
     }
 
     #[inline]
-    fn slice_index(&self, count: usize) -> Option<usize> {
+    fn slice_index(&self, count: usize) -> Result<usize, Needed> {
         if self.inner.len() >= count {
-            Some(count)
+            Ok(count)
         } else {
-            None
+            Err(Needed::Unknown)
         }
     }
 }

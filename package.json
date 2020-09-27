@@ -22,7 +22,7 @@
   "scripts": {
     "build": "rimraf dist && rollup -c",
     "start": "rimraf dist && rollup -c -w",
-    "test": "cargo test && wasm-pack test --node && jest",
+    "test": "cargo test --workspace && wasm-pack test --node && jest",
     "fmt": "cargo fmt && prettier --write --plugin-search-dir=. .",
     "deploy": "gh-pages -d dist"
   },

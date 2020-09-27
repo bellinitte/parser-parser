@@ -1,12 +1,10 @@
 use super::{builder, lexer, parser, scanner};
-use js_sys::{Object, Reflect};
 use std::{fmt, ops::Range};
-use wasm_bindgen::prelude::*;
 
 #[derive(Debug)]
 pub struct Error {
-    kind: ErrorKind,
-    position: Range<usize>,
+    pub kind: ErrorKind,
+    pub position: Range<usize>,
 }
 
 #[derive(Debug)]
@@ -76,27 +74,5 @@ impl std::error::Error for Error {
             ErrorKind::Parser(inner) => Some(inner),
             ErrorKind::Builder(inner) => Some(inner),
         }
-    }
-}
-
-#[allow(unused_unsafe)]
-impl Into<JsValue> for Error {
-    fn into(self) -> JsValue {
-        let position = Object::new();
-        unsafe {
-            Reflect::set(
-                &position,
-                &"start".into(),
-                &(self.position.start as u32).into(),
-            )
-            .unwrap();
-            Reflect::set(&position, &"end".into(), &(self.position.end as u32).into()).unwrap();
-        }
-        let error = Object::new();
-        unsafe {
-            Reflect::set(&error, &"kind".into(), &self.to_string().into()).unwrap();
-            Reflect::set(&error, &"position".into(), &position.into()).unwrap();
-        }
-        return error.into();
     }
 }

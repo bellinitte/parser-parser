@@ -35,6 +35,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "ebnf-parser-parser"
+version = "0.1.0"
+dependencies = [
+ "nom",
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "futures"
 version = "0.1.29"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -97,9 +105,9 @@ checksum = "8452105ba047068f40ff7093dd1d9da90898e63dd61736462e9cdda6a90ad3c3"
 
 [[package]]
 name = "nom"
-version = "6.0.0-alpha1"
+version = "6.0.0-alpha2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "25020779544bf717b917323b42f23c9dbef1bd2b97b576df6484a0c8709705c6"
+checksum = "5bd3285fb63b4f8b6f48411c2dd483e2fef0188cd00a1397c106b6f7b35077b9"
 dependencies = [
  "lexical-core",
  "memchr",
@@ -111,10 +119,9 @@ name = "parser-parser-core"
 version = "0.1.0"
 dependencies = [
  "console_error_panic_hook",
+ "ebnf-parser-parser",
  "futures",
  "js-sys",
- "nom",
- "unicode-segmentation",
  "wasm-bindgen",
  "wasm-bindgen-futures 0.3.27",
  "wasm-bindgen-test",

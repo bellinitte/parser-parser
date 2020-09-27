@@ -1,2 +1,1 @@
-pub mod ebnf;
-mod error;
+pub mod error;
