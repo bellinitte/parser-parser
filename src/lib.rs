@@ -1,6 +1,6 @@
-use wasm_bindgen::prelude::*;
-use ebnf_parser_parser as ebnf;
 use crate::core::error::Error;
+use ebnf_parser_parser as ebnf;
+use wasm_bindgen::prelude::*;
 
 mod core;
 

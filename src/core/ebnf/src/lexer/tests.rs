@@ -55,6 +55,10 @@ fn test_options() {
             position: 1..4,
         })
     );
+    assert_eq!(
+        lex(&regular(" /")),
+        Ok(vec![Token::new(TokenKind::DefinitionSeparator, 1..2),])
+    );
 }
 
 #[test]
@@ -313,6 +317,21 @@ fn test_whitespace() {
 
 #[test]
 fn test_comments() {
+    assert_eq!(lex(&regular(" (* test *) ")), Ok(vec![]));
+    assert_eq!(
+        lex(&regular(" (* test * ")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedComment,
+            position: 10..11,
+        })
+    );
+    assert_eq!(
+        lex(&regular(" (* (")),
+        Err(Error {
+            kind: ErrorKind::UnterminatedComment,
+            position: 4..5,
+        })
+    );
     assert_eq!(
         lex(&regular(", (*, *) , ")),
         Ok(vec![

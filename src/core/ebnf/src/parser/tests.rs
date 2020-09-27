@@ -328,6 +328,14 @@ fn test_productions() {
 fn test_syntaxes() {
     use super::syntax;
 
+    error_case!(
+        syntax,
+        &vec![],
+        Error {
+            kind: ErrorKind::IdentifierExpected,
+            position: 0..0
+        }
+    );
     ok_case!(
         syntax,
         &vec![

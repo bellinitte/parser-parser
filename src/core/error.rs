@@ -1,7 +1,7 @@
 use ebnf_parser_parser as ebnf;
-use wasm_bindgen::prelude::*;
 use js_sys::{Object, Reflect};
 use std::fmt;
+use wasm_bindgen::prelude::*;
 
 #[derive(Debug)]
 pub enum Error {
@@ -43,7 +43,12 @@ impl Into<JsValue> for Error {
                         &(inner.position.start as u32).into(),
                     )
                     .unwrap();
-                    Reflect::set(&position, &"end".into(), &(inner.position.end as u32).into()).unwrap();
+                    Reflect::set(
+                        &position,
+                        &"end".into(),
+                        &(inner.position.end as u32).into(),
+                    )
+                    .unwrap();
                 }
                 let error = Object::new();
                 unsafe {

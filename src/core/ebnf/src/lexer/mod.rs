@@ -49,14 +49,18 @@ pub(super) fn lex<'a>(symbols: &'a [Symbol]) -> Result<Vec<Token>, Error> {
                                         i += 2;
                                         nest_level += 1;
                                     }
-                                    _ => {}
+                                    _ => {
+                                        i += 1;
+                                    }
                                 },
                                 Some((_, '*')) => match symbols.get(i + 1) {
                                     Some((_, ')')) => {
                                         i += 2;
                                         nest_level -= 1;
                                     }
-                                    _ => {}
+                                    _ => {
+                                        i += 1;
+                                    }
                                 },
                                 Some(_) => {
                                     i += 1;
@@ -101,11 +105,10 @@ pub(super) fn lex<'a>(symbols: &'a [Symbol]) -> Result<Vec<Token>, Error> {
                     tokens.push(Token::new(TokenKind::EndOption, *o..*o + 2));
                     i += 2;
                 }
-                Some(_) => {
+                _ => {
                     tokens.push(Token::new(TokenKind::DefinitionSeparator, *o..*o + 1));
                     i += 1;
                 }
-                _ => {}
             },
             Some((o, '}')) => {
                 tokens.push(Token::new(TokenKind::EndRepeat, *o..*o + 1));

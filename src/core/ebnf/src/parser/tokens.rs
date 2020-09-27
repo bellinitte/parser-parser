@@ -1,7 +1,7 @@
 use super::Token;
 use nom::{
-    Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Slice,
-    UnspecializedInput, Needed
+    Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Needed,
+    Slice, UnspecializedInput,
 };
 use std::{
     iter::{Enumerate, Map},
