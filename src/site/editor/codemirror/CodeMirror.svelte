@@ -66,48 +66,6 @@
         editor.refresh();
     }
 
-    // $: {
-    //     if (marker) {
-    //         marker.clear();
-    //     }
-    //     if (error) {
-    //         marker = editor.markText(
-    //             {
-    //                 line: error.location.start.line - 1,
-    //                 ch: error.location.start.column - 1,
-    //             },
-    //             {
-    //                 line: error.location.end.line - 1,
-    //                 ch: error.location.end.column - 1,
-    //             },
-    //             {
-    //                 className: "error-loc",
-    //             }
-    //         );
-    //     }
-    // }
-
-    // var widgets = [];
-
-    // $: {
-    //     for (var i = 0; i < widgets.length; ++i) {
-    //         editor.removeLineWidget(widgets[i]);
-    //     }
-    //     widgets = [];
-
-    //     if (error) {
-    //         var msg = document.createElement("div");
-    //         msg.appendChild(document.createTextNode(error.message));
-    //         msg.className = "lint-error";
-    //         widgets.push(
-    //             editor.addLineWidget(error.location.start.line - 1, msg, {
-    //                 coverGutter: false,
-    //                 noHScroll: true,
-    //             })
-    //         );
-    //     }
-    // }
-
     onMount(() => {
         (async () => {
             let mod = await import("./codemirror.js");
@@ -152,10 +110,12 @@
                 "Ctrl-/": "toggleComment",
                 "Cmd-/": "toggleComment",
             },
-            lint: lint ? {
-                getAnnotations: lint,
-                delay: Number.EPSILON,
-            } : false,
+            lint: lint
+                ? {
+                      getAnnotations: lint,
+                      delay: Number.EPSILON,
+                  }
+                : false,
         };
 
         if (!tab) {
@@ -206,7 +166,8 @@
     .codemirror-container :global(.CodeMirror) {
         height: 100%;
         background: transparent;
-        font: 400 14px/1.7 monospace;
+        font: 400 16px/1.7;
+        font-family: "JetBrains Mono", Consolas, monospace;
         color: var(--base);
     }
 

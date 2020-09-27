@@ -10,7 +10,7 @@
 
 <h1>Parser-parser</h1>
 
-{#await import('../../Cargo.toml')}
+{#await import('core')}
     <p>Loading module...</p>
 {:then wasm}
     {#await wasm.default()}

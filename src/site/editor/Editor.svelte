@@ -1,5 +1,5 @@
 <script>
-    import CodeMirror from "./CodeMirror.svelte";
+    import CodeMirror from "./codemirror/CodeMirror.svelte";
 
     export let core;
     let parseEditor;
@@ -24,19 +24,25 @@
                         line: 1,
                         column: e.position.end + 1,
                     },
-                }
+                },
             };
         }
     }
 
-    function lint(text) {
+    function lint() {
         let errors = [];
         if (error) {
             errors.push({
-                from: { line: error.location.start.line - 1, ch: error.location.start.column - 1},
-                to: { line: error.location.end.line - 1, ch: error.location.end.column - 1},
-                message: error.message
-            })
+                from: {
+                    line: error.location.start.line - 1,
+                    ch: error.location.start.column - 1,
+                },
+                to: {
+                    line: error.location.end.line - 1,
+                    ch: error.location.end.column - 1,
+                },
+                message: error.message,
+            });
         }
         return errors;
     }
