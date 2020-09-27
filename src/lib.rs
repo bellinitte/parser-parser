@@ -1,17 +1,33 @@
-mod core;
+use wasm_bindgen::prelude::*;
+use crate::core::ebnf;
 
-pub use crate::core::EbnfParserParser;
+pub mod core;
 
 #[cfg(feature = "wee_alloc")]
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
-// #[wasm_bindgen]
-// pub fn parse(input: JsString) -> bool {
-//     let i: String = input.into();
+#[wasm_bindgen]
+pub struct EbnfParserParser {
+    parser: Box<dyn Fn(&str) -> bool>,
+}
 
-//     true
-// }
+#[wasm_bindgen]
+impl EbnfParserParser {
+    #[wasm_bindgen(constructor)]
+    pub fn new(input: &str) -> Result<EbnfParserParser, JsValue> {
+        match ebnf::construct(input) {
+            Ok(parser_parser) => Ok(EbnfParserParser {
+                parser: parser_parser,
+            }),
+            Err(e) => Err(e.into()),
+        }
+    }
+
+    pub fn check(&self, input: &str) -> bool {
+        (*self.parser)(input)
+    }
+}
 
 pub fn set_panic_hook() {
     // When the `console_error_panic_hook` feature is enabled, we can call the

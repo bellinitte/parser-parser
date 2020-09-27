@@ -1,12 +1,8 @@
 import { render } from "@testing-library/svelte";
 import App from "../src/site/App.svelte";
 
-const core = {
-    parse: (_) => "None",
-};
-
 it('displays "Parser-parser"', async () => {
-    const { getByRole } = render(App, { core: core });
+    const { getByRole } = render(App);
 
     const h1 = getByRole("heading");
 
