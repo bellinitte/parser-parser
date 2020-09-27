@@ -64,3 +64,8 @@ button:active {
 button:focus {
     border-color: #666;
 }
+
+@font-face {
+    font-family: "JetBrains Mono";
+    src: url("fonts/JetBrainsMono-Regular.woff") format("woff");
+}
