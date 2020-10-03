@@ -364,6 +364,18 @@ fn test_comments() {
 }
 
 #[test]
+fn test_multiline() {
+    assert_eq!(
+        lex(&regular(" abc \n = 'def' ")),
+        Ok(vec![
+            Token::new(TokenKind::Nonterminal("abc".to_owned()), 1..4),
+            Token::new(TokenKind::Definition, 7..8),
+            Token::new(TokenKind::Terminal("def".to_owned()), 9..14)
+        ])
+    );
+}
+
+#[test]
 fn test_combinations() {}
 
 #[test]
