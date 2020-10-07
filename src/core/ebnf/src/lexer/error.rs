@@ -1,9 +1,10 @@
 use std::{fmt, ops::Range};
+use super::Span;
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub position: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]

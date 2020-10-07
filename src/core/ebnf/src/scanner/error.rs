@@ -8,13 +8,13 @@ pub struct Error {
 
 #[derive(Debug, PartialEq)]
 pub enum ErrorKind {
-    ControlCharacter(char),
+    ControlCharacter(String),
 }
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.kind {
-            ErrorKind::ControlCharacter(c) => write!(f, "control character {:#x?}", c),
+            ErrorKind::ControlCharacter(s) => write!(f, "control character {:#x?}", s),
         }
     }
 }
