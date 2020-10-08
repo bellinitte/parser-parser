@@ -1,4 +1,4 @@
-use super::{Location, Span, TokenKind};
+use super::{Span, TokenKind};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Grammar {

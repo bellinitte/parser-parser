@@ -1,4 +1,4 @@
-use super::error::{Location, Span};
+use super::error::Span;
 use super::lexer::{Token, TokenKind};
 pub use ast::{Expression, Grammar, Node, NodeAt, Production};
 use error::{Error, ErrorKind};
