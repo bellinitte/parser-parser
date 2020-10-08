@@ -1,10 +1,67 @@
-use super::{lex, Error, ErrorKind, Symbol, Token, TokenKind, Span};
+use super::{lex, Error, ErrorKind, Span, Token, TokenKind, scan, Symbol};
+
+#[test]
+fn test_scan_control_characters() {
+    use std::str;
+
+    assert_eq!(
+        scan(str::from_utf8(&[0x0a, 0x0d]).unwrap()),
+        Ok(vec![
+            Symbol { grapheme: "\n".into(), span: Span::from(((0, 0), (0, 1))) },
+            Symbol { grapheme: "\r".into(), span: Span::from(((0, 1), (0, 2))) },
+        ])
+    );
+}
+
+#[test]
+fn test_scan_multiline() {
+    assert_eq!(
+        scan(" abc \n = def "),
+        Ok(vec![
+            Symbol { grapheme: " ".into(), span: Span::from(((0, 0), (1, 0))) },
+            Symbol { grapheme: "a".into(), span: Span::from(((1, 0), (2, 0))) },
+            Symbol { grapheme: "b".into(), span: Span::from(((2, 0), (3, 0))) },
+            Symbol { grapheme: "c".into(), span: Span::from(((3, 0), (4, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
+            Symbol { grapheme: "\n".into(), span: Span::from(((5, 0), (0, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((0, 1), (1, 1))) },
+            Symbol { grapheme: "=".into(), span: Span::from(((1, 1), (2, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((2, 1), (3, 1))) },
+            Symbol { grapheme: "d".into(), span: Span::from(((3, 1), (4, 1))) },
+            Symbol { grapheme: "e".into(), span: Span::from(((4, 1), (5, 1))) },
+            Symbol { grapheme: "f".into(), span: Span::from(((5, 1), (6, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((6, 1), (7, 1))) },
+        ])
+    );
+}
+
+#[test]
+fn test_scan_multiple_unicode_code_points() {
+    assert_eq!(
+        scan("aéf = abc;"),
+        Ok(vec![
+            Symbol { grapheme: "a".into(), span: Span::from(((0, 0), (1, 0))) },
+            Symbol { grapheme: "e\u{301}".into(), span: Span::from(((1, 0), (3, 0))) },
+            Symbol { grapheme: "f".into(), span: Span::from(((3, 0), (4, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
+            Symbol { grapheme: "=".into(), span: Span::from(((5, 0), (6, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((6, 0), (7, 0))) },
+            Symbol { grapheme: "a".into(), span: Span::from(((7, 0), (8, 0))) },
+            Symbol { grapheme: "b".into(), span: Span::from(((8, 0), (9, 0))) },
+            Symbol { grapheme: "c".into(), span: Span::from(((9, 0), (10, 0))) },
+            Symbol { grapheme: ";".into(), span: Span::from(((10, 0), (11, 0))) },
+        ])
+    );
+}
 
 #[test]
 fn test_concatenation() {
     assert_eq!(
         lex(","),
-        Ok(vec![Token::new(TokenKind::Concatenation, Span::from(((0, 0), (1, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Concatenation,
+            Span::from(((0, 0), (1, 0)))
+        )])
     );
 }
 
@@ -25,9 +82,15 @@ fn test_definitions() {
     assert_eq!(
         lex("abc = b;"),
         Ok(vec![
-            Token::new(TokenKind::Nonterminal("abc".to_owned()), Span::from(((0, 0), (3, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((0, 0), (3, 0)))
+            ),
             Token::new(TokenKind::Definition, Span::from(((4, 0), (5, 0)))),
-            Token::new(TokenKind::Nonterminal("b".to_owned()), Span::from(((6, 0), (7, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("b".to_owned()),
+                Span::from(((6, 0), (7, 0)))
+            ),
             Token::new(TokenKind::Terminator, Span::from(((7, 0), (8, 0))))
         ])
     );
@@ -53,7 +116,10 @@ fn test_options() {
     );
     assert_eq!(
         lex(" /"),
-        Ok(vec![Token::new(TokenKind::DefinitionSeparator, Span::from(((1, 0), (2, 0)))),])
+        Ok(vec![Token::new(
+            TokenKind::DefinitionSeparator,
+            Span::from(((1, 0), (2, 0)))
+        ),])
     );
 }
 
@@ -175,7 +241,10 @@ fn test_specials() {
     );
     assert_eq!(
         lex("??"),
-        Ok(vec![Token::new(TokenKind::Special("".to_owned()), Span::from(((0, 0), (2, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Special("".to_owned()),
+            Span::from(((0, 0), (2, 0)))
+        )])
     );
     //     ok_case!(
     //         special,
@@ -216,19 +285,31 @@ fn test_specials() {
 fn test_integers() {
     assert_eq!(
         lex(" 123 "),
-        Ok(vec![Token::new(TokenKind::Integer(123), Span::from(((1, 0), (4, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Integer(123),
+            Span::from(((1, 0), (4, 0)))
+        )])
     );
     assert_eq!(
         lex(" 1 2  3  "),
-        Ok(vec![Token::new(TokenKind::Integer(123), Span::from(((1, 0), (7, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Integer(123),
+            Span::from(((1, 0), (7, 0)))
+        )])
     );
     assert_eq!(
         lex(" 01234 56"),
-        Ok(vec![Token::new(TokenKind::Integer(123456), Span::from(((1, 0), (9, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Integer(123456),
+            Span::from(((1, 0), (9, 0)))
+        )])
     );
     assert_eq!(
         lex(" 0 "),
-        Ok(vec![Token::new(TokenKind::Integer(0), Span::from(((1, 0), (2, 0))))])
+        Ok(vec![Token::new(
+            TokenKind::Integer(0),
+            Span::from(((1, 0), (2, 0)))
+        )])
     );
     // ok_case!(integer, "123", 3, 123.token_at(0..3));
     // ok_case!(integer, "12 3", 4, 123.token_at(0..4));
@@ -364,9 +445,15 @@ fn test_multiline() {
     assert_eq!(
         lex(" abc \n = 'def' "),
         Ok(vec![
-            Token::new(TokenKind::Nonterminal("abc".to_owned()), Span::from(((1, 0), (4, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((1, 0), (4, 0)))
+            ),
             Token::new(TokenKind::Definition, Span::from(((1, 1), (2, 1)))),
-            Token::new(TokenKind::Terminal("def".to_owned()), Span::from(((3, 1), (8, 1))))
+            Token::new(
+                TokenKind::Terminal("def".to_owned()),
+                Span::from(((3, 1), (8, 1)))
+            )
         ])
     );
 }
@@ -379,9 +466,15 @@ fn test_multiple_unicode_code_points() {
     assert_eq!(
         lex("aéf = abc;"),
         Ok(vec![
-            Token::new(TokenKind::Nonterminal("aéf".to_owned()), Span::from(((0, 0), (4, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("aéf".to_owned()),
+                Span::from(((0, 0), (4, 0)))
+            ),
             Token::new(TokenKind::Definition, Span::from(((5, 0), (6, 0)))),
-            Token::new(TokenKind::Nonterminal("abc".to_owned()), Span::from(((7, 0), (10, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((7, 0), (10, 0)))
+            ),
             Token::new(TokenKind::Terminator, Span::from(((10, 0), (11, 0)))),
         ])
     );

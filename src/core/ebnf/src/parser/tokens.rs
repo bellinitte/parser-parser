@@ -1,4 +1,4 @@
-use super::Token;
+use super::{Span, Token};
 use nom::{
     Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Needed,
     Slice, UnspecializedInput,
@@ -12,14 +12,14 @@ use std::{
 #[derive(Debug, Clone)]
 pub struct Tokens<'a> {
     inner: &'a [Token],
-    last_span: Range<usize>,
+    last_span: Span,
 }
 
 impl<'a> Tokens<'a> {
     pub fn new(tokens: &'a [Token]) -> Tokens<'a> {
         let first_span = match tokens.iter().next() {
             Some(token) => token.span.clone(),
-            None => 0..0,
+            None => Span::new(),
         };
         Tokens {
             inner: tokens,
@@ -27,7 +27,7 @@ impl<'a> Tokens<'a> {
         }
     }
 
-    pub fn last_span(&self) -> Range<usize> {
+    pub fn last_span(&self) -> Span {
         self.last_span.clone()
     }
 }

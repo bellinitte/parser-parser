@@ -37,48 +37,20 @@ impl Into<JsValue> for Error {
             Error::Ebnf(inner) => {
                 let from = Object::new();
                 unsafe {
-                    Reflect::set(
-                        &from,
-                        &"line".into(),
-                        &(inner.span.from.line as u32).into(),
-                    )
-                    .unwrap();
-                    Reflect::set(
-                        &from,
-                        &"ch".into(),
-                        &(inner.span.from.column as u32).into(),
-                    )
-                    .unwrap();
+                    Reflect::set(&from, &"line".into(), &(inner.span.from.line as u32).into())
+                        .unwrap();
+                    Reflect::set(&from, &"ch".into(), &(inner.span.from.column as u32).into())
+                        .unwrap();
                 }
                 let to = Object::new();
                 unsafe {
-                    Reflect::set(
-                        &to,
-                        &"line".into(),
-                        &(inner.span.to.line as u32).into(),
-                    )
-                    .unwrap();
-                    Reflect::set(
-                        &to,
-                        &"ch".into(),
-                        &(inner.span.to.column as u32).into(),
-                    )
-                    .unwrap();
+                    Reflect::set(&to, &"line".into(), &(inner.span.to.line as u32).into()).unwrap();
+                    Reflect::set(&to, &"ch".into(), &(inner.span.to.column as u32).into()).unwrap();
                 }
                 let span = Object::new();
                 unsafe {
-                    Reflect::set(
-                        &span,
-                        &"from".into(),
-                        &from.into(),
-                    )
-                    .unwrap();
-                    Reflect::set(
-                        &span,
-                        &"to".into(),
-                        &to.into(),
-                    )
-                    .unwrap();
+                    Reflect::set(&span, &"from".into(), &from.into()).unwrap();
+                    Reflect::set(&span, &"to".into(), &to.into()).unwrap();
                 }
                 let error = Object::new();
                 unsafe {

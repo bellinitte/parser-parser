@@ -12,19 +12,17 @@
             output = parser.check("test");
             error = null;
         } catch (e) {
-            output = e.kind + " at position " + e.position.start;
+            output = e.kind;
             error = {
                 message: e.kind,
-                location: {
-                    start: {
-                        line: 1,
-                        column: e.position.start + 1,
-                    },
-                    end: {
-                        line: 1,
-                        column: e.position.end + 1,
-                    },
+                from: {
+                    line: e.span.from.line,
+                    ch: e.span.from.ch,
                 },
+                to: {
+                    line: e.span.to.line,
+                    ch: e.span.to.ch,
+                }
             };
         }
     }
@@ -32,17 +30,7 @@
     function lint() {
         let errors = [];
         if (error) {
-            errors.push({
-                from: {
-                    line: error.location.start.line - 1,
-                    ch: error.location.start.column - 1,
-                },
-                to: {
-                    line: error.location.end.line - 1,
-                    ch: error.location.end.column - 1,
-                },
-                message: error.message,
-            });
+            errors.push(error);
         }
         return errors;
     }

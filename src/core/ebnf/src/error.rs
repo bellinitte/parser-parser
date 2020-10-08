@@ -1,4 +1,4 @@
-use super::{/*builder, */lexer/*, parser, scanner*/};
+use super::{builder, lexer, parser};
 use std::fmt;
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
@@ -9,10 +9,7 @@ pub struct Location {
 
 impl Location {
     pub fn new() -> Location {
-        Location {
-            column: 0,
-            line: 0,
-        }
+        Location { column: 0, line: 0 }
     }
 }
 
@@ -36,6 +33,13 @@ impl Span {
             to: end.to,
         }
     }
+
+    pub fn between(start: &Span, end: &Span) -> Span {
+        Span {
+            from: start.to,
+            to: end.from,
+        }
+    }
 }
 
 impl From<((usize, usize), (usize, usize))> for Span {
@@ -48,7 +52,7 @@ impl From<((usize, usize), (usize, usize))> for Span {
             to: Location {
                 column: (tuples.1).0,
                 line: (tuples.1).1,
-            }
+            },
         }
     }
 }
@@ -61,21 +65,10 @@ pub struct Error {
 
 #[derive(Debug)]
 pub enum ErrorKind {
-    // Scanner(scanner::error::Error),
     Lexer(lexer::error::Error),
-    // Parser(parser::error::Error),
-    // Builder(builder::error::Error),
+    Parser(parser::error::Error),
+    Builder(builder::error::Error),
 }
-
-// impl From<scanner::error::Error> for Error {
-//     fn from(error: scanner::error::Error) -> Error {
-//         let position = error.position..error.position + 1;
-//         Error {
-//             kind: ErrorKind::Scanner(error),
-//             position,
-//         }
-//     }
-// }
 
 impl From<lexer::error::Error> for Error {
     fn from(error: lexer::error::Error) -> Error {
@@ -87,33 +80,32 @@ impl From<lexer::error::Error> for Error {
     }
 }
 
-// impl From<parser::error::Error> for Error {
-//     fn from(error: parser::error::Error) -> Error {
-//         let position = error.position.clone();
-//         Error {
-//             kind: ErrorKind::Parser(error),
-//             position,
-//         }
-//     }
-// }
+impl From<parser::error::Error> for Error {
+    fn from(error: parser::error::Error) -> Error {
+        let span = error.span.clone();
+        Error {
+            kind: ErrorKind::Parser(error),
+            span,
+        }
+    }
+}
 
-// impl From<builder::error::Error> for Error {
-//     fn from(error: builder::error::Error) -> Error {
-//         let position = error.position.clone();
-//         Error {
-//             kind: ErrorKind::Builder(error),
-//             position,
-//         }
-//     }
-// }
+impl From<builder::error::Error> for Error {
+    fn from(error: builder::error::Error) -> Error {
+        let span = error.span.clone();
+        Error {
+            kind: ErrorKind::Builder(error),
+            span,
+        }
+    }
+}
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.kind {
-            // ErrorKind::Scanner(inner) => write!(f, "{}", inner),
             ErrorKind::Lexer(inner) => write!(f, "{}", inner),
-            // ErrorKind::Parser(inner) => write!(f, "{}", inner),
-            // ErrorKind::Builder(inner) => write!(f, "{}", inner),
+            ErrorKind::Parser(inner) => write!(f, "{}", inner),
+            ErrorKind::Builder(inner) => write!(f, "{}", inner),
         }
     }
 }
@@ -121,10 +113,9 @@ impl fmt::Display for Error {
 impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match &self.kind {
-            // ErrorKind::Scanner(inner) => Some(inner),
             ErrorKind::Lexer(inner) => Some(inner),
-            // ErrorKind::Parser(inner) => Some(inner),
-            // ErrorKind::Builder(inner) => Some(inner),
+            ErrorKind::Parser(inner) => Some(inner),
+            ErrorKind::Builder(inner) => Some(inner),
         }
     }
 }

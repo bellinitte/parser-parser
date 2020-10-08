@@ -1,5 +1,5 @@
-use std::{fmt, ops::Range};
 use super::Span;
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub struct Error {

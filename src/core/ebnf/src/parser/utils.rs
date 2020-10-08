@@ -1,4 +1,4 @@
-use super::{Error, ErrorKind, Expression, Node, NodeAt, Token, TokenKind, Tokens};
+use super::{Error, ErrorKind, Expression, Node, NodeAt, Span, Token, TokenKind, Tokens};
 use nom::{Err, IResult, InputIter, Parser, Slice};
 
 #[macro_export]
@@ -10,13 +10,10 @@ macro_rules! literal {
                     kind: kind @ $kind,
                     span,
                 }) => Ok((i.slice(1..), kind.node_at(span))),
-                Some(Token { span, .. }) => Err(Err::Error(Error {
-                    kind: $error,
-                    position: span,
-                })),
+                Some(Token { span, .. }) => Err(Err::Error(Error { kind: $error, span })),
                 None => Err(Err::Error(Error {
                     kind: $error,
-                    position: i.last_span(),
+                    span: i.last_span(),
                 })),
             }
         }
@@ -92,11 +89,11 @@ pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
         }) => Ok((i.slice(1..), s.node_at(span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::IdentifierExpected,
-            position: span,
+            span,
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::IdentifierExpected,
-            position: i.last_span(),
+            span: i.last_span(),
         })),
     }
 }
@@ -109,11 +106,11 @@ pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         }) => Ok((i.slice(1..), Expression::Nonterminal(s).node_at(span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::NonterminalExpected,
-            position: span,
+            span,
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::NonterminalExpected,
-            position: i.last_span(),
+            span: i.last_span(),
         })),
     }
 }
@@ -126,11 +123,11 @@ pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         }) => Ok((i.slice(1..), Expression::Terminal(s).node_at(span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::TerminalExpected,
-            position: span,
+            span,
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::TerminalExpected,
-            position: i.last_span(),
+            span: i.last_span(),
         })),
     }
 }
@@ -143,11 +140,11 @@ pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         }) => Ok((i.slice(1..), Expression::Special(s).node_at(span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::SpecialExpected,
-            position: span,
+            span,
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::SpecialExpected,
-            position: i.last_span(),
+            span: i.last_span(),
         })),
     }
 }
@@ -160,18 +157,18 @@ pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
         }) => Ok((i.slice(1..), s.node_at(span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::IntegerExpected,
-            position: span,
+            span,
         })),
         None => Err(Err::Error(Error {
             kind: ErrorKind::IntegerExpected,
-            position: i.last_span(),
+            span: i.last_span(),
         })),
     }
 }
 
 pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     let span = match i.iter_elements().next() {
-        Some(token) => i.last_span().end..token.span.start,
+        Some(token) => Span::between(&i.last_span(), &token.span),
         None => i.last_span(),
     };
     Ok((i, Expression::Empty.node_at(span)))

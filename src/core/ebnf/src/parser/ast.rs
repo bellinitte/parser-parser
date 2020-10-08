@@ -1,5 +1,4 @@
-use super::TokenKind;
-use std::ops::Range;
+use super::{Location, Span, TokenKind};
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Grammar {
@@ -43,11 +42,11 @@ pub enum Expression {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Node<T> {
     pub inner: T,
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 impl<T> Node<T> {
-    pub fn new(inner: T, span: Range<usize>) -> Node<T> {
+    pub fn new(inner: T, span: Span) -> Node<T> {
         Node { inner, span }
     }
 }
@@ -56,17 +55,25 @@ pub trait NodeAt
 where
     Self: Sized,
 {
-    fn node_at(self, range: Range<usize>) -> Node<Self>;
+    fn node_at(self, span: Span) -> Node<Self>;
+    fn node_from_to(self, from: (usize, usize), to: (usize, usize)) -> Node<Self>;
 }
 
 #[macro_export]
 macro_rules! impl_node_at {
     ($impl_type:ty) => {
         impl NodeAt for $impl_type {
-            fn node_at(self, span: Range<usize>) -> Node<$impl_type> {
+            fn node_at(self, span: Span) -> Node<$impl_type> {
                 Node {
                     inner: self,
                     span: span,
+                }
+            }
+
+            fn node_from_to(self, from: (usize, usize), to: (usize, usize)) -> Node<$impl_type> {
+                Node {
+                    inner: self,
+                    span: Span::from((from, to)),
                 }
             }
         }

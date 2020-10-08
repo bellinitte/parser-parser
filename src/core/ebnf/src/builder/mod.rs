@@ -1,5 +1,6 @@
 pub mod error;
 
+use super::error::Span;
 use super::parser::Grammar;
 use error::Error;
 

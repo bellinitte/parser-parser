@@ -1,5 +1,5 @@
-use std::{fmt, ops::Range};
-use super::{Location, Span};
+use super::Span;
+use std::fmt;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Symbol<'a> {
