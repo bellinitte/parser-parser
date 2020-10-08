@@ -1,25 +1,78 @@
-use super::{lex, Error, ErrorKind, Symbol, Token, TokenKind};
+use super::{lex, Error, ErrorKind, Span, Token, TokenKind, scan, Symbol};
 
-fn regular<'a>(s: &'a str) -> Vec<Symbol> {
-    (0..).zip(s.chars()).collect()
+#[test]
+fn test_scan_control_characters() {
+    use std::str;
+
+    assert_eq!(
+        scan(str::from_utf8(&[0x0a, 0x0d]).unwrap()),
+        Ok(vec![
+            Symbol { grapheme: "\n".into(), span: Span::from(((0, 0), (0, 1))) },
+            Symbol { grapheme: "\r".into(), span: Span::from(((0, 1), (0, 2))) },
+        ])
+    );
+}
+
+#[test]
+fn test_scan_multiline() {
+    assert_eq!(
+        scan(" abc \n = def "),
+        Ok(vec![
+            Symbol { grapheme: " ".into(), span: Span::from(((0, 0), (1, 0))) },
+            Symbol { grapheme: "a".into(), span: Span::from(((1, 0), (2, 0))) },
+            Symbol { grapheme: "b".into(), span: Span::from(((2, 0), (3, 0))) },
+            Symbol { grapheme: "c".into(), span: Span::from(((3, 0), (4, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
+            Symbol { grapheme: "\n".into(), span: Span::from(((5, 0), (0, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((0, 1), (1, 1))) },
+            Symbol { grapheme: "=".into(), span: Span::from(((1, 1), (2, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((2, 1), (3, 1))) },
+            Symbol { grapheme: "d".into(), span: Span::from(((3, 1), (4, 1))) },
+            Symbol { grapheme: "e".into(), span: Span::from(((4, 1), (5, 1))) },
+            Symbol { grapheme: "f".into(), span: Span::from(((5, 1), (6, 1))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((6, 1), (7, 1))) },
+        ])
+    );
+}
+
+#[test]
+fn test_scan_multiple_unicode_code_points() {
+    assert_eq!(
+        scan("aéf = abc;"),
+        Ok(vec![
+            Symbol { grapheme: "a".into(), span: Span::from(((0, 0), (1, 0))) },
+            Symbol { grapheme: "e\u{301}".into(), span: Span::from(((1, 0), (3, 0))) },
+            Symbol { grapheme: "f".into(), span: Span::from(((3, 0), (4, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
+            Symbol { grapheme: "=".into(), span: Span::from(((5, 0), (6, 0))) },
+            Symbol { grapheme: " ".into(), span: Span::from(((6, 0), (7, 0))) },
+            Symbol { grapheme: "a".into(), span: Span::from(((7, 0), (8, 0))) },
+            Symbol { grapheme: "b".into(), span: Span::from(((8, 0), (9, 0))) },
+            Symbol { grapheme: "c".into(), span: Span::from(((9, 0), (10, 0))) },
+            Symbol { grapheme: ";".into(), span: Span::from(((10, 0), (11, 0))) },
+        ])
+    );
 }
 
 #[test]
 fn test_concatenation() {
     assert_eq!(
-        lex(&regular(",")),
-        Ok(vec![Token::new(TokenKind::Concatenation, 0..1)])
+        lex(","),
+        Ok(vec![Token::new(
+            TokenKind::Concatenation,
+            Span::from(((0, 0), (1, 0)))
+        )])
     );
 }
 
 #[test]
 fn test_definition_separators() {
     assert_eq!(
-        lex(&regular("| /!")),
+        lex("| /!"),
         Ok(vec![
-            Token::new(TokenKind::DefinitionSeparator, 0..1),
-            Token::new(TokenKind::DefinitionSeparator, 2..3),
-            Token::new(TokenKind::DefinitionSeparator, 3..4)
+            Token::new(TokenKind::DefinitionSeparator, Span::from(((0, 0), (1, 0)))),
+            Token::new(TokenKind::DefinitionSeparator, Span::from(((2, 0), (3, 0)))),
+            Token::new(TokenKind::DefinitionSeparator, Span::from(((3, 0), (4, 0))))
         ])
     );
 }
@@ -27,12 +80,18 @@ fn test_definition_separators() {
 #[test]
 fn test_definitions() {
     assert_eq!(
-        lex(&regular("abc = b;")),
+        lex("abc = b;"),
         Ok(vec![
-            Token::new(TokenKind::Nonterminal("abc".to_owned()), 0..3),
-            Token::new(TokenKind::Definition, 4..5),
-            Token::new(TokenKind::Nonterminal("b".to_owned()), 6..7),
-            Token::new(TokenKind::Terminator, 7..8)
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((0, 0), (3, 0)))
+            ),
+            Token::new(TokenKind::Definition, Span::from(((4, 0), (5, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("b".to_owned()),
+                Span::from(((6, 0), (7, 0)))
+            ),
+            Token::new(TokenKind::Terminator, Span::from(((7, 0), (8, 0))))
         ])
     );
 }
@@ -40,43 +99,46 @@ fn test_definitions() {
 #[test]
 fn test_options() {
     assert_eq!(
-        lex(&regular(" (/ [ /) ]")),
+        lex(" (/ [ /) ]"),
         Ok(vec![
-            Token::new(TokenKind::StartOption, 1..3),
-            Token::new(TokenKind::StartOption, 4..5),
-            Token::new(TokenKind::EndOption, 6..8),
-            Token::new(TokenKind::EndOption, 9..10)
+            Token::new(TokenKind::StartOption, Span::from(((1, 0), (3, 0)))),
+            Token::new(TokenKind::StartOption, Span::from(((4, 0), (5, 0)))),
+            Token::new(TokenKind::EndOption, Span::from(((6, 0), (8, 0)))),
+            Token::new(TokenKind::EndOption, Span::from(((9, 0), (10, 0))))
         ])
     );
     assert_eq!(
-        lex(&regular(" (/) ")),
+        lex(" (/) "),
         Err(Error {
             kind: ErrorKind::InvalidSymbol("(/)".to_owned()),
-            position: 1..4,
+            span: Span::from(((1, 0), (4, 0))),
         })
     );
     assert_eq!(
-        lex(&regular(" /")),
-        Ok(vec![Token::new(TokenKind::DefinitionSeparator, 1..2),])
+        lex(" /"),
+        Ok(vec![Token::new(
+            TokenKind::DefinitionSeparator,
+            Span::from(((1, 0), (2, 0)))
+        ),])
     );
 }
 
 #[test]
 fn test_repeats() {
     assert_eq!(
-        lex(&regular("(::) { } ")),
+        lex("(::) { } "),
         Ok(vec![
-            Token::new(TokenKind::StartRepeat, 0..2),
-            Token::new(TokenKind::EndRepeat, 2..4),
-            Token::new(TokenKind::StartRepeat, 5..6),
-            Token::new(TokenKind::EndRepeat, 7..8)
+            Token::new(TokenKind::StartRepeat, Span::from(((0, 0), (2, 0)))),
+            Token::new(TokenKind::EndRepeat, Span::from(((2, 0), (4, 0)))),
+            Token::new(TokenKind::StartRepeat, Span::from(((5, 0), (6, 0)))),
+            Token::new(TokenKind::EndRepeat, Span::from(((7, 0), (8, 0))))
         ])
     );
     assert_eq!(
-        lex(&regular(" (:) ")),
+        lex(" (:) "),
         Err(Error {
             kind: ErrorKind::InvalidSymbol("(:)".to_owned()),
-            position: 1..4,
+            span: Span::from(((1, 0), (4, 0))),
         })
     );
 }
@@ -84,58 +146,58 @@ fn test_repeats() {
 #[test]
 fn test_terminals() {
     assert_eq!(
-        lex(&regular(" \"ab c \" ")),
+        lex(" \"ab c \" "),
         Ok(vec![Token::new(
             TokenKind::Terminal("ab c ".to_owned()),
-            1..8
+            Span::from(((1, 0), (8, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular("  '\"aba' ")),
+        lex("  '\"aba' "),
         Ok(vec![Token::new(
             TokenKind::Terminal("\"aba".to_owned()),
-            2..8
+            Span::from(((2, 0), (8, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular(" ' a \"")),
+        lex(" ' a \""),
         Err(Error {
             kind: ErrorKind::UnterminatedTerminal,
-            position: 5..6,
+            span: Span::from(((5, 0), (6, 0))),
         })
     );
     assert_eq!(
-        lex(&regular("\"bbb'   ")),
+        lex("\"bbb'   "),
         Err(Error {
             kind: ErrorKind::UnterminatedTerminal,
-            position: 7..8,
+            span: Span::from(((7, 0), (8, 0))),
         })
     );
     assert_eq!(
-        lex(&regular("\"\"")),
+        lex("\"\""),
         Err(Error {
             kind: ErrorKind::EmptyTerminal,
-            position: 0..2,
+            span: Span::from(((0, 0), (2, 0))),
         })
     );
     assert_eq!(
-        lex(&regular("''")),
+        lex("''"),
         Err(Error {
             kind: ErrorKind::EmptyTerminal,
-            position: 0..2,
+            span: Span::from(((0, 0), (2, 0))),
         })
     );
     //     ok_case!(
     //         terminal,
     //         "'a string'",
     //         10,
-    //         Expression::Terminal("a string".to_owned()).token_at(0..10)
+    //         Expression::Terminal("a string".to_owned()).token_at(Span::from(((0, 0), (10, 0))))
     //     );
     //     ok_case!(
     //         terminal,
     //         "\"some other string  \"abc",
     //         21,
-    //         Expression::Terminal("some other string  ".to_owned()).token_at(0..21)
+    //         Expression::Terminal("some other string  ".to_owned()).token_at(Span::from(((0, 0), (21, 0))))
     //     );
     //     failure_case!(terminal, "\"not closed", Error::Internal(ErrorKind::Char));
     //     failure_case!(terminal, "'not closed", Error::Internal(ErrorKind::Char));
@@ -157,41 +219,44 @@ fn test_terminals() {
 #[test]
 fn test_specials() {
     assert_eq!(
-        lex(&regular(" ? test ?")),
+        lex(" ? test ?"),
         Ok(vec![Token::new(
             TokenKind::Special(" test ".to_owned()),
-            1..9
+            Span::from(((1, 0), (9, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular("?a\nbc?  ")),
+        lex("?a\nbc?  "),
         Ok(vec![Token::new(
             TokenKind::Special("a\nbc".to_owned()),
-            0..6
+            Span::from(((0, 0), (3, 1)))
         )])
     );
     assert_eq!(
-        lex(&regular(" ?bbb  ")),
+        lex(" ?bbb  "),
         Err(Error {
             kind: ErrorKind::UnterminatedSpecial,
-            position: 6..7,
+            span: Span::from(((6, 0), (7, 0))),
         })
     );
     assert_eq!(
-        lex(&regular("??")),
-        Ok(vec![Token::new(TokenKind::Special("".to_owned()), 0..2)])
+        lex("??"),
+        Ok(vec![Token::new(
+            TokenKind::Special("".to_owned()),
+            Span::from(((0, 0), (2, 0)))
+        )])
     );
     //     ok_case!(
     //         special,
     //         "? anything really ?",
     //         19,
-    //         Expression::Special("anythingreally".to_owned()).token_at(0..19)
+    //         Expression::Special("anythingreally".to_owned()).token_at(Span::from(((0, 0), (19, 0))))
     //     );
     //     ok_case!(
     //         special,
     //         "?藏!? abc",
     //         6,
-    //         Expression::Special("藏!".to_owned()).token_at(0..6)
+    //         Expression::Special("藏!".to_owned()).token_at(Span::from(((0, 0), (6, 0))))
     //     );
     //     failure_case!(special, "? not closed", Error::UnterminatedSpecial);
     //     error_case!(special, "not opened ?", Error::Internal(ErrorKind::Char));
@@ -199,19 +264,19 @@ fn test_specials() {
     //         special,
     //         "? this has\na newline ?",
     //         22,
-    //         Expression::Special("thishasanewline".to_owned()).token_at(0..22)
+    //         Expression::Special("thishasanewline".to_owned()).token_at(Span::from(((0, 0), (22, 0))))
     //     );
     //     ok_case!(
     //         special,
     //         "??",
     //         2,
-    //         Expression::Special("".to_owned()).token_at(0..2)
+    //         Expression::Special("".to_owned()).token_at(Span::from(((0, 0), (2, 0))))
     //     );
     //     ok_case!(
     //         special,
     //         "? test (* comment *) ?",
     //         22,
-    //         Expression::Special("test(*comment*)".to_owned()).token_at(0..22)
+    //         Expression::Special("test(*comment*)".to_owned()).token_at(Span::from(((0, 0), (22, 0))))
     //     );
     //     error_case!(special, "  ? test ?  ", Error::Internal(ErrorKind::Char));
 }
@@ -219,20 +284,32 @@ fn test_specials() {
 #[test]
 fn test_integers() {
     assert_eq!(
-        lex(&regular(" 123 ")),
-        Ok(vec![Token::new(TokenKind::Integer(123), 1..4)])
+        lex(" 123 "),
+        Ok(vec![Token::new(
+            TokenKind::Integer(123),
+            Span::from(((1, 0), (4, 0)))
+        )])
     );
     assert_eq!(
-        lex(&regular(" 1 2  3  ")),
-        Ok(vec![Token::new(TokenKind::Integer(123), 1..7)])
+        lex(" 1 2  3  "),
+        Ok(vec![Token::new(
+            TokenKind::Integer(123),
+            Span::from(((1, 0), (7, 0)))
+        )])
     );
     assert_eq!(
-        lex(&regular(" 01234 56")),
-        Ok(vec![Token::new(TokenKind::Integer(123456), 1..9)])
+        lex(" 01234 56"),
+        Ok(vec![Token::new(
+            TokenKind::Integer(123456),
+            Span::from(((1, 0), (9, 0)))
+        )])
     );
     assert_eq!(
-        lex(&regular(" 0 ")),
-        Ok(vec![Token::new(TokenKind::Integer(0), 1..2)])
+        lex(" 0 "),
+        Ok(vec![Token::new(
+            TokenKind::Integer(0),
+            Span::from(((1, 0), (2, 0)))
+        )])
     );
     // ok_case!(integer, "123", 3, 123.token_at(0..3));
     // ok_case!(integer, "12 3", 4, 123.token_at(0..4));
@@ -246,31 +323,31 @@ fn test_integers() {
 #[test]
 fn test_nonterminals() {
     assert_eq!(
-        lex(&regular(" abc ")),
+        lex(" abc "),
         Ok(vec![Token::new(
             TokenKind::Nonterminal("abc".to_owned()),
-            1..4
+            Span::from(((1, 0), (4, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular("a  bc ")),
+        lex("a  bc "),
         Ok(vec![Token::new(
             TokenKind::Nonterminal("abc".to_owned()),
-            0..5
+            Span::from(((0, 0), (5, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular("abc12 3 ")),
+        lex("abc12 3 "),
         Ok(vec![Token::new(
             TokenKind::Nonterminal("abc123".to_owned()),
-            0..7
+            Span::from(((0, 0), (7, 0)))
         )])
     );
     assert_eq!(
-        lex(&regular(" x ")),
+        lex(" x "),
         Ok(vec![Token::new(
             TokenKind::Nonterminal("x".to_owned()),
-            1..2
+            Span::from(((1, 0), (2, 0)))
         )])
     );
     //     ok_case!(identifier, "abc12", 5, "abc12".to_owned().token_at(0..5));
@@ -296,10 +373,10 @@ fn test_nonterminals() {
 #[test]
 fn test_invalid_symbols() {
     assert_eq!(
-        lex(&regular(" + ")),
+        lex(" + "),
         Err(Error {
             kind: ErrorKind::InvalidSymbol('+'.to_string()),
-            position: 1..2,
+            span: Span::from(((1, 0), (2, 0))),
         })
     );
 }
@@ -307,58 +384,58 @@ fn test_invalid_symbols() {
 #[test]
 fn test_whitespace() {
     assert_eq!(
-        lex(&regular("  , \n,")),
+        lex("  , \n,"),
         Ok(vec![
-            Token::new(TokenKind::Concatenation, 2..3),
-            Token::new(TokenKind::Concatenation, 5..6)
+            Token::new(TokenKind::Concatenation, Span::from(((2, 0), (3, 0)))),
+            Token::new(TokenKind::Concatenation, Span::from(((0, 1), (1, 1))))
         ])
     );
 }
 
 #[test]
 fn test_comments() {
-    assert_eq!(lex(&regular(" (* test *) ")), Ok(vec![]));
+    assert_eq!(lex(" (* test *) "), Ok(vec![]));
     assert_eq!(
-        lex(&regular(" (* test * ")),
+        lex(" (* test * "),
         Err(Error {
             kind: ErrorKind::UnterminatedComment,
-            position: 10..11,
+            span: Span::from(((10, 0), (11, 0))),
         })
     );
     assert_eq!(
-        lex(&regular(" (* (")),
+        lex(" (* ("),
         Err(Error {
             kind: ErrorKind::UnterminatedComment,
-            position: 4..5,
+            span: Span::from(((4, 0), (5, 0))),
         })
     );
     assert_eq!(
-        lex(&regular(", (*, *) , ")),
+        lex(", (*, *) , "),
         Ok(vec![
-            Token::new(TokenKind::Concatenation, 0..1),
-            Token::new(TokenKind::Concatenation, 9..10)
+            Token::new(TokenKind::Concatenation, Span::from(((0, 0), (1, 0)))),
+            Token::new(TokenKind::Concatenation, Span::from(((9, 0), (10, 0))))
         ])
     );
     assert_eq!(
-        lex(&regular(" ,(*, (* ,*) ,*) , ,")),
+        lex(" ,(*, (* ,*) ,*) , ,"),
         Ok(vec![
-            Token::new(TokenKind::Concatenation, 1..2),
-            Token::new(TokenKind::Concatenation, 17..18),
-            Token::new(TokenKind::Concatenation, 19..20),
+            Token::new(TokenKind::Concatenation, Span::from(((1, 0), (2, 0)))),
+            Token::new(TokenKind::Concatenation, Span::from(((17, 0), (18, 0)))),
+            Token::new(TokenKind::Concatenation, Span::from(((19, 0), (20, 0)))),
         ])
     );
     assert_eq!(
-        lex(&regular(" (* (* *) ")),
+        lex(" (* (* *) "),
         Err(Error {
             kind: ErrorKind::UnterminatedComment,
-            position: 9..10,
+            span: Span::from(((9, 0), (10, 0))),
         })
     );
     assert_eq!(
-        lex(&regular(" (*) ")),
+        lex(" (*) "),
         Err(Error {
             kind: ErrorKind::InvalidSymbol("(*)".to_owned()),
-            position: 1..4,
+            span: Span::from(((1, 0), (4, 0))),
         })
     );
 }
@@ -366,11 +443,17 @@ fn test_comments() {
 #[test]
 fn test_multiline() {
     assert_eq!(
-        lex(&regular(" abc \n = 'def' ")),
+        lex(" abc \n = 'def' "),
         Ok(vec![
-            Token::new(TokenKind::Nonterminal("abc".to_owned()), 1..4),
-            Token::new(TokenKind::Definition, 7..8),
-            Token::new(TokenKind::Terminal("def".to_owned()), 9..14)
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((1, 0), (4, 0)))
+            ),
+            Token::new(TokenKind::Definition, Span::from(((1, 1), (2, 1)))),
+            Token::new(
+                TokenKind::Terminal("def".to_owned()),
+                Span::from(((3, 1), (8, 1)))
+            )
         ])
     );
 }
@@ -379,4 +462,20 @@ fn test_multiline() {
 fn test_combinations() {}
 
 #[test]
-fn test_unicode() {}
+fn test_multiple_unicode_code_points() {
+    assert_eq!(
+        lex("aéf = abc;"),
+        Ok(vec![
+            Token::new(
+                TokenKind::Nonterminal("aéf".to_owned()),
+                Span::from(((0, 0), (4, 0)))
+            ),
+            Token::new(TokenKind::Definition, Span::from(((5, 0), (6, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("abc".to_owned()),
+                Span::from(((7, 0), (10, 0)))
+            ),
+            Token::new(TokenKind::Terminator, Span::from(((10, 0), (11, 0)))),
+        ])
+    );
+}

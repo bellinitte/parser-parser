@@ -1,13 +1,20 @@
-use std::{fmt, ops::Range};
+use super::Span;
+use std::fmt;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Symbol<'a> {
+    pub grapheme: &'a str,
+    pub span: Span,
+}
 
 #[derive(PartialEq, Debug, Clone)]
 pub struct Token {
     pub kind: TokenKind,
-    pub span: Range<usize>,
+    pub span: Span,
 }
 
 impl Token {
-    pub fn new(kind: TokenKind, span: Range<usize>) -> Token {
+    pub fn new(kind: TokenKind, span: Span) -> Token {
         Token { kind, span }
     }
 }

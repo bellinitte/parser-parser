@@ -1,11 +1,12 @@
+use super::Span;
 use super::Tokens;
 use nom::InputIter;
-use std::{fmt, ops::Range};
+use std::fmt;
 
 #[derive(Debug, PartialEq)]
 pub struct Error {
     pub kind: ErrorKind,
-    pub position: Range<usize>,
+    pub span: Span,
 }
 
 #[derive(Debug, PartialEq)]
@@ -33,13 +34,13 @@ pub enum ErrorKind {
 
 impl<'a> nom::error::ParseError<Tokens<'a>> for Error {
     fn from_error_kind(input: Tokens<'a>, e: nom::error::ErrorKind) -> Self {
-        let position = match input.iter_elements().next() {
+        let span = match input.iter_elements().next() {
             Some(token) => token.span,
             None => input.last_span(),
         };
         Error {
             kind: ErrorKind::Nom(e),
-            position,
+            span,
         }
     }
 
