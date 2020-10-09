@@ -5,7 +5,7 @@ use error::{Error, ErrorKind};
 use nom::{
     branch::alt,
     combinator::{cut, map, opt},
-    multi::{many1, separated_list1},
+    multi::many1,
     sequence::{pair, preceded, separated_pair, terminated, tuple},
     IResult,
 };
@@ -137,10 +137,10 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
 
 fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
     map(
-        pair(
-            separated_pair(identifier, cut(definition_symbol), alternative),
-            cut(terminator_symbol),
-        ),
+        non_eof(cut(pair(
+            separated_pair(identifier, definition_symbol, alternative),
+            terminator_symbol,
+        ))),
         |((identifier, definitions), terminator)| {
             let span = Span::combine(&identifier.span, &terminator.span);
             Production {

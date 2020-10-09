@@ -1,5 +1,5 @@
 use super::{Error, ErrorKind, Expression, Node, NodeAt, Span, Token, TokenKind, Tokens};
-use nom::{Err, IResult, InputIter, Parser, Slice};
+use nom::{error::ParseError, Err, IResult, InputIter, InputLength, Parser, Slice};
 
 #[macro_export]
 macro_rules! literal {
@@ -172,6 +172,79 @@ pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
         None => i.last_span(),
     };
     Ok((i, Expression::Empty.node_at(span)))
+}
+
+pub fn non_eof<'a, O, F>(mut f: F) -> impl FnMut(Tokens<'a>) -> IResult<Tokens<'a>, O, Error>
+where
+    F: Parser<Tokens<'a>, O, Error>,
+{
+    move |input: Tokens| {
+        if input.input_len() == 0 {
+            Err(Err::Error(Error {
+                kind: ErrorKind::IdentifierExpected,
+                span: input.last_span(),
+            }))
+        } else {
+            let (input, res) = f.parse(input)?;
+            Ok((input, res))
+        }
+    }
+}
+
+pub fn separated_list1<I, O, O2, E, F, G>(
+    mut sep: G,
+    mut f: F,
+) -> impl FnMut(I) -> IResult<I, Vec<O>, E>
+where
+    I: Clone + PartialEq,
+    F: Parser<I, O, E>,
+    G: Parser<I, O2, E>,
+    E: ParseError<I>,
+{
+    move |i: I| {
+        let mut res = Vec::new();
+        let mut i = i.clone();
+
+        // Parse the first element
+        match f.parse(i.clone()) {
+            Err(e) => return Err(e),
+            Ok((i1, o)) => {
+                res.push(o);
+                i = i1;
+            }
+        }
+
+        loop {
+            match sep.parse(i.clone()) {
+                Err(Err::Error(_)) => return Ok((i, res)),
+                Err(e) => return Err(e),
+                Ok((i1, _)) => {
+                    if i1 == i {
+                        return Err(Err::Error(E::from_error_kind(
+                            i1,
+                            nom::error::ErrorKind::SeparatedList,
+                        )));
+                    }
+
+                    match f.parse(i1.clone()) {
+                        Err(Err::Error(_)) => return Ok((i, res)),
+                        Err(e) => return Err(e),
+                        Ok((i2, o)) => {
+                            if i2 == i {
+                                return Err(Err::Error(E::from_error_kind(
+                                    i2,
+                                    nom::error::ErrorKind::SeparatedList,
+                                )));
+                            }
+
+                            res.push(o);
+                            i = i2;
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn map_err<I, O, E1, E2, F, G>(mut first: F, second: G) -> impl FnMut(I) -> IResult<I, O, E2>

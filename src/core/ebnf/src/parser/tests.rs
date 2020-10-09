@@ -158,6 +158,12 @@ fn test_terms() {
         }
         .node_at(Span::from(((0, 0), (3, 0))))
     );
+    ok_case!(
+        term,
+        &vec![],
+        0,
+        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
+    );
 }
 
 #[test]
@@ -195,6 +201,12 @@ fn test_sequences() {
             ]
         }
         .node_at(Span::from(((0, 0), (17, 0))))
+    );
+    ok_case!(
+        sequence,
+        &vec![],
+        0,
+        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
     );
 }
 
@@ -257,6 +269,12 @@ fn test_alternatives() {
             rest: Vec::new(),
         }
         .node_at(Span::from(((1, 0), (16, 0))))
+    );
+    ok_case!(
+        alternative,
+        &vec![],
+        0,
+        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
     );
 }
 
@@ -473,6 +491,56 @@ fn test_productions() {
             .node_at(Span::from(((6, 0), (31, 0))))
         }
         .node_at(Span::from(((0, 0), (32, 0))))
+    );
+    failure_case!(
+        production,
+        &vec![Token::new(
+            TokenKind::Terminator,
+            Span::from(((0, 0), (1, 0)))
+        )],
+        Error {
+            kind: ErrorKind::IdentifierExpected,
+            span: Span::from(((0, 0), (1, 0)))
+        }
+    );
+    ok_case!(
+        production,
+        &vec![
+            Token::new(
+                TokenKind::Nonterminal("a".to_owned()),
+                Span::from(((0, 0), (1, 0)))
+            ),
+            Token::new(TokenKind::Definition, Span::from(((2, 0), (3, 0)))),
+            Token::new(
+                TokenKind::Nonterminal("b".to_owned()),
+                Span::from(((4, 0), (5, 0)))
+            ),
+            Token::new(TokenKind::Terminator, Span::from(((5, 0), (6, 0)))),
+            Token::new(TokenKind::Terminator, Span::from(((6, 0), (7, 0))))
+        ],
+        4,
+        Production {
+            lhs: "a".to_owned().node_at(Span::from(((0, 0), (1, 0)))),
+            rhs: Expression::Nonterminal("b".to_owned()).node_at(Span::from(((4, 0), (5, 0))))
+        }
+        .node_at(Span::from(((0, 0), (6, 0))))
+    );
+    ok_case!(
+        production,
+        &vec![
+            Token::new(
+                TokenKind::Nonterminal("a".to_owned()),
+                Span::from(((0, 0), (1, 0)))
+            ),
+            Token::new(TokenKind::Definition, Span::from(((2, 0), (3, 0)))),
+            Token::new(TokenKind::Terminator, Span::from(((4, 0), (5, 0))))
+        ],
+        3,
+        Production {
+            lhs: "a".to_owned().node_at(Span::from(((0, 0), (1, 0)))),
+            rhs: Expression::Empty.node_at(Span::from(((3, 0), (4, 0))))
+        }
+        .node_at(Span::from(((0, 0), (5, 0))))
     );
 }
 

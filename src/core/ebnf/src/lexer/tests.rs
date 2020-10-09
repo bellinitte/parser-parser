@@ -1,4 +1,4 @@
-use super::{lex, Error, ErrorKind, Span, Token, TokenKind, scan, Symbol};
+use super::{lex, scan, Error, ErrorKind, Span, Symbol, Token, TokenKind};
 
 #[test]
 fn test_scan_control_characters() {
@@ -7,8 +7,14 @@ fn test_scan_control_characters() {
     assert_eq!(
         scan(str::from_utf8(&[0x0a, 0x0d]).unwrap()),
         Ok(vec![
-            Symbol { grapheme: "\n".into(), span: Span::from(((0, 0), (0, 1))) },
-            Symbol { grapheme: "\r".into(), span: Span::from(((0, 1), (0, 2))) },
+            Symbol {
+                grapheme: "\n".into(),
+                span: Span::from(((0, 0), (0, 1)))
+            },
+            Symbol {
+                grapheme: "\r".into(),
+                span: Span::from(((0, 1), (0, 2)))
+            },
         ])
     );
 }
@@ -18,19 +24,58 @@ fn test_scan_multiline() {
     assert_eq!(
         scan(" abc \n = def "),
         Ok(vec![
-            Symbol { grapheme: " ".into(), span: Span::from(((0, 0), (1, 0))) },
-            Symbol { grapheme: "a".into(), span: Span::from(((1, 0), (2, 0))) },
-            Symbol { grapheme: "b".into(), span: Span::from(((2, 0), (3, 0))) },
-            Symbol { grapheme: "c".into(), span: Span::from(((3, 0), (4, 0))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
-            Symbol { grapheme: "\n".into(), span: Span::from(((5, 0), (0, 1))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((0, 1), (1, 1))) },
-            Symbol { grapheme: "=".into(), span: Span::from(((1, 1), (2, 1))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((2, 1), (3, 1))) },
-            Symbol { grapheme: "d".into(), span: Span::from(((3, 1), (4, 1))) },
-            Symbol { grapheme: "e".into(), span: Span::from(((4, 1), (5, 1))) },
-            Symbol { grapheme: "f".into(), span: Span::from(((5, 1), (6, 1))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((6, 1), (7, 1))) },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((0, 0), (1, 0)))
+            },
+            Symbol {
+                grapheme: "a".into(),
+                span: Span::from(((1, 0), (2, 0)))
+            },
+            Symbol {
+                grapheme: "b".into(),
+                span: Span::from(((2, 0), (3, 0)))
+            },
+            Symbol {
+                grapheme: "c".into(),
+                span: Span::from(((3, 0), (4, 0)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((4, 0), (5, 0)))
+            },
+            Symbol {
+                grapheme: "\n".into(),
+                span: Span::from(((5, 0), (0, 1)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((0, 1), (1, 1)))
+            },
+            Symbol {
+                grapheme: "=".into(),
+                span: Span::from(((1, 1), (2, 1)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((2, 1), (3, 1)))
+            },
+            Symbol {
+                grapheme: "d".into(),
+                span: Span::from(((3, 1), (4, 1)))
+            },
+            Symbol {
+                grapheme: "e".into(),
+                span: Span::from(((4, 1), (5, 1)))
+            },
+            Symbol {
+                grapheme: "f".into(),
+                span: Span::from(((5, 1), (6, 1)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((6, 1), (7, 1)))
+            },
         ])
     );
 }
@@ -40,16 +85,46 @@ fn test_scan_multiple_unicode_code_points() {
     assert_eq!(
         scan("aéf = abc;"),
         Ok(vec![
-            Symbol { grapheme: "a".into(), span: Span::from(((0, 0), (1, 0))) },
-            Symbol { grapheme: "e\u{301}".into(), span: Span::from(((1, 0), (3, 0))) },
-            Symbol { grapheme: "f".into(), span: Span::from(((3, 0), (4, 0))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((4, 0), (5, 0))) },
-            Symbol { grapheme: "=".into(), span: Span::from(((5, 0), (6, 0))) },
-            Symbol { grapheme: " ".into(), span: Span::from(((6, 0), (7, 0))) },
-            Symbol { grapheme: "a".into(), span: Span::from(((7, 0), (8, 0))) },
-            Symbol { grapheme: "b".into(), span: Span::from(((8, 0), (9, 0))) },
-            Symbol { grapheme: "c".into(), span: Span::from(((9, 0), (10, 0))) },
-            Symbol { grapheme: ";".into(), span: Span::from(((10, 0), (11, 0))) },
+            Symbol {
+                grapheme: "a".into(),
+                span: Span::from(((0, 0), (1, 0)))
+            },
+            Symbol {
+                grapheme: "e\u{301}".into(),
+                span: Span::from(((1, 0), (3, 0)))
+            },
+            Symbol {
+                grapheme: "f".into(),
+                span: Span::from(((3, 0), (4, 0)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((4, 0), (5, 0)))
+            },
+            Symbol {
+                grapheme: "=".into(),
+                span: Span::from(((5, 0), (6, 0)))
+            },
+            Symbol {
+                grapheme: " ".into(),
+                span: Span::from(((6, 0), (7, 0)))
+            },
+            Symbol {
+                grapheme: "a".into(),
+                span: Span::from(((7, 0), (8, 0)))
+            },
+            Symbol {
+                grapheme: "b".into(),
+                span: Span::from(((8, 0), (9, 0)))
+            },
+            Symbol {
+                grapheme: "c".into(),
+                span: Span::from(((9, 0), (10, 0)))
+            },
+            Symbol {
+                grapheme: ";".into(),
+                span: Span::from(((10, 0), (11, 0)))
+            },
         ])
     );
 }
