@@ -10,14 +10,14 @@ static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
 
 #[wasm_bindgen]
 pub struct EbnfParserParser {
-    parser: Box<dyn Fn(&str) -> bool>,
+    parser: ebnf::Parser,
 }
 
 #[wasm_bindgen]
 impl EbnfParserParser {
     #[wasm_bindgen(constructor)]
     pub fn new(input: &str) -> Result<EbnfParserParser, JsValue> {
-        match ebnf::construct(input) {
+        match ebnf::parse(input) {
             Ok(parser_parser) => Ok(EbnfParserParser {
                 parser: parser_parser,
             }),
@@ -26,7 +26,7 @@ impl EbnfParserParser {
     }
 
     pub fn check(&self, input: &str) -> bool {
-        (*self.parser)(input)
+        ebnf::check(input, &self.parser)
     }
 }
 

@@ -1,4 +1,4 @@
-FROM rust
+FROM jdrouet/rust-nightly
 
 # wasm-pack
 RUN curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh

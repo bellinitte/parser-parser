@@ -1,5 +1,5 @@
 use super::span::{Span, Spanned, Spanning};
-use super::{builder, lexer, parser};
+use super::{lexer, parser, preprocessor};
 use crate::impl_spanning;
 use std::fmt;
 
@@ -13,7 +13,7 @@ pub struct Error {
 pub enum ErrorKind {
     Lexer(lexer::error::Error),
     Parser(parser::error::Error),
-    Builder(builder::error::Error),
+    Preprocessor(preprocessor::error::Error),
 }
 
 impl_spanning!(Error);
@@ -36,10 +36,10 @@ impl From<Spanned<parser::error::Error>> for Error {
     }
 }
 
-impl From<Spanned<builder::error::Error>> for Error {
-    fn from(error: Spanned<builder::error::Error>) -> Error {
+impl From<Spanned<preprocessor::error::Error>> for Error {
+    fn from(error: Spanned<preprocessor::error::Error>) -> Error {
         Error {
-            kind: ErrorKind::Builder(error.node),
+            kind: ErrorKind::Preprocessor(error.node),
             span: error.span,
         }
     }
@@ -50,7 +50,7 @@ impl fmt::Display for Error {
         match &self.kind {
             ErrorKind::Lexer(inner) => write!(f, "{}", inner),
             ErrorKind::Parser(inner) => write!(f, "{}", inner),
-            ErrorKind::Builder(inner) => write!(f, "{}", inner),
+            ErrorKind::Preprocessor(inner) => write!(f, "{}", inner),
         }
     }
 }
@@ -60,7 +60,7 @@ impl std::error::Error for Error {
         match &self.kind {
             ErrorKind::Lexer(inner) => Some(inner),
             ErrorKind::Parser(inner) => Some(inner),
-            ErrorKind::Builder(inner) => Some(inner),
+            ErrorKind::Preprocessor(inner) => Some(inner),
         }
     }
 }

@@ -21,11 +21,11 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '12'
-    - name: Install stable Rust toolchain
+    - name: Install nightly Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: nightly
         override: true
     - name: Install wasm-pack
       uses: jetli/wasm-pack-action@v0.3.0
@@ -44,11 +44,11 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '12'
-    - name: Install stable Rust toolchain
+    - name: Install nightly Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: nightly
         override: true
     - name: Install wasm-pack
       uses: jetli/wasm-pack-action@v0.3.0
@@ -67,11 +67,11 @@ jobs:
       uses: actions/setup-node@v1
       with:
         node-version: '12'
-    - name: Install stable Rust toolchain
+    - name: Install nightly Rust toolchain
       uses: actions-rs/toolchain@v1
       with:
         profile: minimal
-        toolchain: stable
+        toolchain: nightly
         override: true
     - name: Install wasm-pack
       uses: jetli/wasm-pack-action@v0.3.0

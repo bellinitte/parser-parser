@@ -3,13 +3,14 @@
 
     export let core;
     let parseEditor;
-    let output = "";
+    let checkEditor;
+    let parser;
+    let output;;
     let error;
 
-    function handle_change(event) {
+    function handle_parse_change(event) {
         try {
-            let parser = new core.EbnfParserParser(event.detail.value);
-            output = parser.check("test");
+            parser = new core.EbnfParserParser(event.detail.value);
             error = null;
         } catch (e) {
             output = e.kind;
@@ -25,6 +26,10 @@
                 }
             };
         }
+    }
+
+    function handle_check_change(event) {
+        output = parser.check(event.detail.value);
     }
 
     function lint() {
@@ -69,6 +74,11 @@
     <CodeMirror
         bind:this="{parseEditor}"
         lint="{lint}"
-        on:change="{handle_change}"
+        on:change="{handle_parse_change}"
     />
+    <CodeMirror
+        bind:this="{checkEditor}"
+        on:change="{handle_check_change}"
+    />
+    <p>{output}</p>
 </div>
