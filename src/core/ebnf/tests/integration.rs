@@ -1,10 +1,10 @@
-use ebnf_parser_parser::construct;
+use ebnf_parser_parser::parse;
 
 #[test]
 fn test_ebnf() {
-    assert!(construct(" abc = 'def'; ").is_ok());
-    assert!(construct(" (* test *) ").is_err());
-    assert!(construct(" (* test *").is_err());
-    assert!(construct("a = b;;").is_err());
-    assert!(construct("a = ;").is_ok());
+    assert!(parse(" abc = 'def'; ").is_ok());
+    assert!(parse(" (* test *) ").is_err());
+    assert!(parse(" (* test *").is_err());
+    assert!(parse("a = b;;").is_err());
+    assert!(parse("a = ;").is_ok());
 }
