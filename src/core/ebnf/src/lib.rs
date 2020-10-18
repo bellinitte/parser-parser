@@ -4,6 +4,7 @@ mod builder;
 pub mod error;
 mod lexer;
 mod parser;
+mod preprocessor;
 
 pub fn construct(input: &str) -> Result<Box<dyn Fn(&str) -> bool>, Error> {
     let tokens = lexer::lex(input)?;

@@ -12,7 +12,6 @@
             output = parser.check("test");
             error = null;
         } catch (e) {
-            output = e.kind;
             error = {
                 message: e.kind,
                 from: {

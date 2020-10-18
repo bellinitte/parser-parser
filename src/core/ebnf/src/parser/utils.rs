@@ -1,15 +1,15 @@
-use super::{Error, ErrorKind, Expression, Node, NodeAt, Span, Token, TokenKind, Tokens};
+use super::{Error, ErrorKind, Expression, Span, Token, TokenKind, Tokens};
 use nom::{error::ParseError, Err, IResult, InputIter, InputLength, Parser, Slice};
 
 #[macro_export]
 macro_rules! literal {
     ($name:ident, $kind:pat, $error:expr) => {
-        pub fn $name(i: Tokens) -> IResult<Tokens, Node<TokenKind>, Error> {
+        pub fn $name(i: Tokens) -> IResult<Tokens, (TokenKind, Span), Error> {
             match i.iter_elements().next() {
                 Some(Token {
                     kind: kind @ $kind,
                     span,
-                }) => Ok((i.slice(1..), kind.node_at(span))),
+                }) => Ok((i.slice(1..), (kind, span))),
                 Some(Token { span, .. }) => Err(Err::Error(Error { kind: $error, span })),
                 None => Err(Err::Error(Error {
                     kind: $error,
@@ -81,12 +81,12 @@ literal!(
     ErrorKind::TerminatorSymbolExpected
 );
 
-pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
+pub fn identifier(i: Tokens) -> IResult<Tokens, (String, Span), Error> {
     match i.iter_elements().next() {
         Some(Token {
             kind: TokenKind::Nonterminal(s),
             span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
+        }) => Ok((i.slice(1..), (s, span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::IdentifierExpected,
             span,
@@ -98,12 +98,18 @@ pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
     }
 }
 
-pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn nonterminal(i: Tokens) -> IResult<Tokens, Expression, Error> {
     match i.iter_elements().next() {
         Some(Token {
             kind: TokenKind::Nonterminal(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Nonterminal(s).node_at(span))),
+        }) => Ok((
+            i.slice(1..),
+            Expression::Nonterminal {
+                identifier: s,
+                span,
+            },
+        )),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::NonterminalExpected,
             span,
@@ -115,12 +121,12 @@ pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     }
 }
 
-pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn terminal(i: Tokens) -> IResult<Tokens, Expression, Error> {
     match i.iter_elements().next() {
         Some(Token {
             kind: TokenKind::Terminal(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Terminal(s).node_at(span))),
+        }) => Ok((i.slice(1..), Expression::Terminal { content: s, span })),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::TerminalExpected,
             span,
@@ -132,12 +138,12 @@ pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     }
 }
 
-pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn special(i: Tokens) -> IResult<Tokens, Expression, Error> {
     match i.iter_elements().next() {
         Some(Token {
             kind: TokenKind::Special(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Special(s).node_at(span))),
+        }) => Ok((i.slice(1..), Expression::Special { content: s, span })),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::SpecialExpected,
             span,
@@ -149,12 +155,12 @@ pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
     }
 }
 
-pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
+pub fn integer(i: Tokens) -> IResult<Tokens, (usize, Span), Error> {
     match i.iter_elements().next() {
         Some(Token {
             kind: TokenKind::Integer(s),
             span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
+        }) => Ok((i.slice(1..), (s, span))),
         Some(Token { span, .. }) => Err(Err::Error(Error {
             kind: ErrorKind::IntegerExpected,
             span,
@@ -166,12 +172,12 @@ pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
     }
 }
 
-pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn empty(i: Tokens) -> IResult<Tokens, Expression, Error> {
     let span = match i.iter_elements().next() {
         Some(token) => Span::between(&i.last_span(), &token.span),
         None => i.last_span(),
     };
-    Ok((i, Expression::Empty.node_at(span)))
+    Ok((i, Expression::Empty { span }))
 }
 
 pub fn non_eof<'a, O, F>(mut f: F) -> impl FnMut(Tokens<'a>) -> IResult<Tokens<'a>, O, Error>

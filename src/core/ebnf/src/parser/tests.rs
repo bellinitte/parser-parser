@@ -1,6 +1,4 @@
-use super::{
-    Error, ErrorKind, Expression, Grammar, NodeAt, Production, Span, Token, TokenKind, Tokens,
-};
+use super::{Error, ErrorKind, Expression, Grammar, Production, Span, Token, TokenKind, Tokens};
 use nom::{Err, Slice};
 
 #[macro_export]
@@ -40,7 +38,10 @@ fn test_factors() {
             Span::from(((1, 0), (11, 0)))
         )],
         1,
-        Expression::Terminal("terminal".to_owned()).node_at(Span::from(((1, 0), (11, 0))))
+        Expression::Terminal {
+            content: "terminal".to_owned(),
+            span: Span::from(((1, 0), (11, 0))),
+        }
     );
     ok_case!(
         factor,
@@ -49,7 +50,10 @@ fn test_factors() {
             Span::from(((0, 0), (13, 0)))
         )],
         1,
-        Expression::Nonterminal("nonterminal".to_owned()).node_at(Span::from(((0, 0), (13, 0))))
+        Expression::Nonterminal {
+            identifier: "nonterminal".to_owned(),
+            span: Span::from(((0, 0), (13, 0))),
+        }
     );
     ok_case!(
         factor,
@@ -58,13 +62,18 @@ fn test_factors() {
             Span::from(((2, 0), (13, 0)))
         )],
         1,
-        Expression::Special(" special ".to_owned()).node_at(Span::from(((2, 0), (13, 0))))
+        Expression::Special {
+            content: " special ".to_owned(),
+            span: Span::from(((2, 0), (13, 0)))
+        }
     );
     ok_case!(
         factor,
         &vec![],
         0,
-        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
+        Expression::Empty {
+            span: Span::from(((0, 0), (0, 0)))
+        }
     );
     ok_case!(
         factor,
@@ -78,12 +87,13 @@ fn test_factors() {
         ],
         3,
         Expression::Factor {
-            count: 2.node_at(Span::from(((0, 0), (1, 0)))),
-            primary: Box::new(
-                Expression::Terminal("terminal".to_owned()).node_at(Span::from(((4, 0), (14, 0))))
-            )
+            count: 2,
+            primary: Box::new(Expression::Terminal {
+                content: "terminal".to_owned(),
+                span: Span::from(((4, 0), (14, 0)))
+            }),
+            span: Span::from(((0, 0), (14, 0)))
         }
-        .node_at(Span::from(((0, 0), (14, 0))))
     );
     failure_case!(
         factor,
@@ -120,14 +130,16 @@ fn test_terms() {
         ],
         3,
         Expression::Exception {
-            subject: Box::new(
-                Expression::Nonterminal("abc".to_owned()).node_at(Span::from(((0, 0), (3, 0))))
-            ),
-            restriction: Box::new(
-                Expression::Terminal("test".to_owned()).node_at(Span::from(((6, 0), (12, 0))))
-            ),
+            subject: Box::new(Expression::Nonterminal {
+                identifier: "abc".to_owned(),
+                span: Span::from(((0, 0), (3, 0)))
+            }),
+            restriction: Box::new(Expression::Terminal {
+                content: "test".to_owned(),
+                span: Span::from(((6, 0), (12, 0)))
+            }),
+            span: Span::from(((0, 0), (12, 0)))
         }
-        .node_at(Span::from(((0, 0), (12, 0))))
     );
     ok_case!(
         term,
@@ -149,20 +161,24 @@ fn test_terms() {
         ],
         3,
         Expression::Exception {
-            subject: Box::new(
-                Expression::Nonterminal("a".to_owned()).node_at(Span::from(((0, 0), (1, 0))))
-            ),
-            restriction: Box::new(
-                Expression::Nonterminal("b".to_owned()).node_at(Span::from(((2, 0), (3, 0))))
-            ),
+            subject: Box::new(Expression::Nonterminal {
+                identifier: "a".to_owned(),
+                span: Span::from(((0, 0), (1, 0)))
+            }),
+            restriction: Box::new(Expression::Nonterminal {
+                identifier: "b".to_owned(),
+                span: Span::from(((2, 0), (3, 0)))
+            }),
+            span: Span::from(((0, 0), (3, 0)))
         }
-        .node_at(Span::from(((0, 0), (3, 0))))
     );
     ok_case!(
         term,
         &vec![],
         0,
-        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
+        Expression::Empty {
+            span: Span::from(((0, 0), (0, 0)))
+        }
     );
 }
 
@@ -190,23 +206,28 @@ fn test_sequences() {
         ],
         5,
         Expression::Sequence {
-            first: Box::new(
-                Expression::Nonterminal("abc".to_owned()).node_at(Span::from(((0, 0), (3, 0))))
-            ),
-            second: Box::new(
-                Expression::Terminal("test".to_owned()).node_at(Span::from(((5, 0), (11, 0))))
-            ),
-            rest: vec![
-                Expression::Nonterminal("bca".to_owned()).node_at(Span::from(((14, 0), (17, 0))))
-            ]
+            first: Box::new(Expression::Nonterminal {
+                identifier: "abc".to_owned(),
+                span: Span::from(((0, 0), (3, 0)))
+            }),
+            second: Box::new(Expression::Terminal {
+                content: "test".to_owned(),
+                span: Span::from(((5, 0), (11, 0)))
+            }),
+            rest: vec![Expression::Nonterminal {
+                identifier: "bca".to_owned(),
+                span: Span::from(((14, 0), (17, 0)))
+            }],
+            span: Span::from(((0, 0), (17, 0)))
         }
-        .node_at(Span::from(((0, 0), (17, 0))))
     );
     ok_case!(
         sequence,
         &vec![],
         0,
-        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
+        Expression::Empty {
+            span: Span::from(((0, 0), (0, 0)))
+        }
     );
 }
 
@@ -239,42 +260,41 @@ fn test_alternatives() {
         ],
         7,
         Expression::Alternative {
-            first: Box::new(
-                Expression::Sequence {
-                    first: Box::new(
-                        Expression::Nonterminal("a".to_owned())
-                            .node_at(Span::from(((1, 0), (2, 0))))
-                    ),
-                    second: Box::new(
-                        Expression::Terminal("b".to_owned()).node_at(Span::from(((4, 0), (7, 0))))
-                    ),
-                    rest: Vec::new(),
-                }
-                .node_at(Span::from(((1, 0), (7, 0))))
-            ),
-            second: Box::new(
-                Expression::Sequence {
-                    first: Box::new(
-                        Expression::Terminal("c".to_owned())
-                            .node_at(Span::from(((10, 0), (13, 0))))
-                    ),
-                    second: Box::new(
-                        Expression::Nonterminal("d".to_owned())
-                            .node_at(Span::from(((15, 0), (16, 0))))
-                    ),
-                    rest: Vec::new(),
-                }
-                .node_at(Span::from(((10, 0), (16, 0))))
-            ),
+            first: Box::new(Expression::Sequence {
+                first: Box::new(Expression::Nonterminal {
+                    identifier: "a".to_owned(),
+                    span: Span::from(((1, 0), (2, 0)))
+                }),
+                second: Box::new(Expression::Terminal {
+                    content: "b".to_owned(),
+                    span: Span::from(((4, 0), (7, 0)))
+                }),
+                rest: Vec::new(),
+                span: Span::from(((1, 0), (7, 0)))
+            }),
+            second: Box::new(Expression::Sequence {
+                first: Box::new(Expression::Terminal {
+                    content: "c".to_owned(),
+                    span: Span::from(((10, 0), (13, 0)))
+                }),
+                second: Box::new(Expression::Nonterminal {
+                    identifier: "d".to_owned(),
+                    span: Span::from(((15, 0), (16, 0)))
+                }),
+                rest: Vec::new(),
+                span: Span::from(((10, 0), (16, 0)))
+            }),
             rest: Vec::new(),
+            span: Span::from(((1, 0), (16, 0)))
         }
-        .node_at(Span::from(((1, 0), (16, 0))))
     );
     ok_case!(
         alternative,
         &vec![],
         0,
-        Expression::Empty.node_at(Span::from(((0, 0), (0, 0))))
+        Expression::Empty {
+            span: Span::from(((0, 0), (0, 0)))
+        }
     );
 }
 
@@ -299,15 +319,17 @@ fn test_grouped() {
         ],
         5,
         Expression::Alternative {
-            first: Box::new(
-                Expression::Nonterminal("b".to_owned()).node_at(Span::from(((1, 0), (2, 0))))
-            ),
-            second: Box::new(
-                Expression::Nonterminal("c".to_owned()).node_at(Span::from(((5, 0), (6, 0))))
-            ),
+            first: Box::new(Expression::Nonterminal {
+                identifier: "b".to_owned(),
+                span: Span::from(((1, 0), (2, 0)))
+            }),
+            second: Box::new(Expression::Nonterminal {
+                identifier: "c".to_owned(),
+                span: Span::from(((5, 0), (6, 0)))
+            }),
             rest: Vec::new(),
+            span: Span::from(((0, 0), (7, 0)))
         }
-        .node_at(Span::from(((0, 0), (7, 0))))
     );
     ok_case!(
         grouped,
@@ -334,25 +356,25 @@ fn test_grouped() {
         ],
         7,
         Expression::Alternative {
-            first: Box::new(
-                Expression::Sequence {
-                    first: Box::new(
-                        Expression::Nonterminal("a".to_owned())
-                            .node_at(Span::from(((2, 0), (3, 0))))
-                    ),
-                    second: Box::new(
-                        Expression::Terminal("b".to_owned()).node_at(Span::from(((5, 0), (8, 0))))
-                    ),
-                    rest: Vec::new(),
-                }
-                .node_at(Span::from(((2, 0), (8, 0))))
-            ),
-            second: Box::new(
-                Expression::Nonterminal("c".to_owned()).node_at(Span::from(((25, 0), (26, 0))))
-            ),
+            first: Box::new(Expression::Sequence {
+                first: Box::new(Expression::Nonterminal {
+                    identifier: "a".to_owned(),
+                    span: Span::from(((2, 0), (3, 0)))
+                }),
+                second: Box::new(Expression::Terminal {
+                    content: "b".to_owned(),
+                    span: Span::from(((5, 0), (8, 0)))
+                }),
+                rest: Vec::new(),
+                span: Span::from(((2, 0), (8, 0)))
+            }),
+            second: Box::new(Expression::Nonterminal {
+                identifier: "c".to_owned(),
+                span: Span::from(((25, 0), (26, 0)))
+            }),
             rest: Vec::new(),
+            span: Span::from(((0, 0), (28, 0)))
         }
-        .node_at(Span::from(((0, 0), (28, 0))))
     );
 }
 
@@ -379,20 +401,21 @@ fn test_repeated() {
             Token::new(TokenKind::EndRepeat, Span::from(((15, 0), (16, 0))))
         ],
         5,
-        Expression::Repeated(Box::new(
-            Expression::Alternative {
-                first: Box::new(
-                    Expression::Nonterminal("abc".to_owned()).node_at(Span::from(((1, 0), (4, 0))))
-                ),
-                second: Box::new(
-                    Expression::Nonterminal("def".to_owned())
-                        .node_at(Span::from(((11, 0), (14, 0))))
-                ),
+        Expression::Repeated {
+            inner: Box::new(Expression::Alternative {
+                first: Box::new(Expression::Nonterminal {
+                    identifier: "abc".to_owned(),
+                    span: Span::from(((1, 0), (4, 0)))
+                }),
+                second: Box::new(Expression::Nonterminal {
+                    identifier: "def".to_owned(),
+                    span: Span::from(((11, 0), (14, 0)))
+                }),
                 rest: Vec::new(),
-            }
-            .node_at(Span::from(((1, 0), (14, 0))))
-        ))
-        .node_at(Span::from(((0, 0), (16, 0))))
+                span: Span::from(((1, 0), (14, 0)))
+            }),
+            span: Span::from(((0, 0), (16, 0)))
+        }
     );
 }
 
@@ -416,19 +439,21 @@ fn test_optionals() {
             Token::new(TokenKind::EndOption, Span::from(((19, 0), (20, 0))))
         ],
         5,
-        Expression::Optional(Box::new(
-            Expression::Alternative {
-                first: Box::new(
-                    Expression::Nonterminal("abc".to_owned()).node_at(Span::from(((2, 0), (5, 0))))
-                ),
-                second: Box::new(
-                    Expression::Nonterminal("def".to_owned()).node_at(Span::from(((6, 0), (9, 0))))
-                ),
+        Expression::Optional {
+            inner: Box::new(Expression::Alternative {
+                first: Box::new(Expression::Nonterminal {
+                    identifier: "abc".to_owned(),
+                    span: Span::from(((2, 0), (5, 0)))
+                }),
+                second: Box::new(Expression::Nonterminal {
+                    identifier: "def".to_owned(),
+                    span: Span::from(((6, 0), (9, 0)))
+                }),
                 rest: Vec::new(),
-            }
-            .node_at(Span::from(((2, 0), (9, 0))))
-        ))
-        .node_at(Span::from(((0, 0), (20, 0))))
+                span: Span::from(((2, 0), (9, 0)))
+            }),
+            span: Span::from(((0, 0), (20, 0)))
+        }
     );
 }
 
@@ -466,31 +491,33 @@ fn test_productions() {
             Token::new(TokenKind::Terminator, Span::from(((31, 0), (32, 0))))
         ],
         10,
-        Production {
-            lhs: "abc".to_owned().node_at(Span::from(((0, 0), (3, 0)))),
-            rhs: Expression::Sequence {
-                first: Box::new(
-                    Expression::Terminal("a".to_owned()).node_at(Span::from(((6, 0), (9, 0))))
-                ),
-                second: Box::new(
-                    Expression::Alternative {
-                        first: Box::new(
-                            Expression::Nonterminal("b".to_owned())
-                                .node_at(Span::from(((12, 0), (13, 0))))
-                        ),
-                        second: Box::new(
-                            Expression::Terminal("c".to_owned())
-                                .node_at(Span::from(((16, 0), (19, 0))))
-                        ),
+        (
+            "abc".to_owned(),
+            Production {
+                expression: Expression::Sequence {
+                    first: Box::new(Expression::Terminal {
+                        content: "a".to_owned(),
+                        span: Span::from(((6, 0), (9, 0)))
+                    }),
+                    second: Box::new(Expression::Alternative {
+                        first: Box::new(Expression::Nonterminal {
+                            identifier: "b".to_owned(),
+                            span: Span::from(((12, 0), (13, 0)))
+                        }),
+                        second: Box::new(Expression::Terminal {
+                            content: "c".to_owned(),
+                            span: Span::from(((16, 0), (19, 0)))
+                        }),
                         rest: Vec::new(),
-                    }
-                    .node_at(Span::from(((11, 0), (31, 0))))
-                ),
-                rest: Vec::new(),
+                        span: Span::from(((11, 0), (31, 0)))
+                    }),
+                    rest: Vec::new(),
+                    span: Span::from(((6, 0), (31, 0)))
+                },
+                production_span: Span::from(((0, 0), (32, 0))),
+                identifier_span: Span::from(((0, 0), (3, 0))),
             }
-            .node_at(Span::from(((6, 0), (31, 0))))
-        }
-        .node_at(Span::from(((0, 0), (32, 0))))
+        )
     );
     failure_case!(
         production,
@@ -519,11 +546,17 @@ fn test_productions() {
             Token::new(TokenKind::Terminator, Span::from(((6, 0), (7, 0))))
         ],
         4,
-        Production {
-            lhs: "a".to_owned().node_at(Span::from(((0, 0), (1, 0)))),
-            rhs: Expression::Nonterminal("b".to_owned()).node_at(Span::from(((4, 0), (5, 0))))
-        }
-        .node_at(Span::from(((0, 0), (6, 0))))
+        (
+            "a".to_owned(),
+            Production {
+                expression: Expression::Nonterminal {
+                    identifier: "b".to_owned(),
+                    span: Span::from(((4, 0), (5, 0)))
+                },
+                identifier_span: Span::from(((0, 0), (1, 0))),
+                production_span: Span::from(((0, 0), (6, 0)))
+            }
+        )
     );
     ok_case!(
         production,
@@ -536,11 +569,16 @@ fn test_productions() {
             Token::new(TokenKind::Terminator, Span::from(((4, 0), (5, 0))))
         ],
         3,
-        Production {
-            lhs: "a".to_owned().node_at(Span::from(((0, 0), (1, 0)))),
-            rhs: Expression::Empty.node_at(Span::from(((3, 0), (4, 0))))
-        }
-        .node_at(Span::from(((0, 0), (5, 0))))
+        (
+            "a".to_owned(),
+            Production {
+                expression: Expression::Empty {
+                    span: Span::from(((3, 0), (4, 0)))
+                },
+                identifier_span: Span::from(((0, 0), (1, 0))),
+                production_span: Span::from(((0, 0), (5, 0))),
+            }
+        )
     );
 }
 
@@ -607,59 +645,63 @@ fn test_syntaxes() {
         20,
         Grammar {
             productions: vec![
-                Production {
-                    lhs: "a".to_owned().node_at(Span::from(((0, 0), (1, 0)))),
-                    rhs: Expression::Alternative {
-                        first: Box::new(
-                            Expression::Terminal("d".to_owned())
-                                .node_at(Span::from(((4, 0), (6, 0))))
-                        ),
-                        second: Box::new(
-                            Expression::Repeated(Box::new(
-                                Expression::Factor {
-                                    count: 2.node_at(Span::from(((11, 0), (12, 0)))),
-                                    primary: Box::new(
-                                        Expression::Terminal("e".to_owned())
-                                            .node_at(Span::from(((15, 0), (18, 0))))
-                                    )
-                                }
-                                .node_at(Span::from(((11, 0), (18, 0))))
-                            ))
-                            .node_at(Span::from(((10, 0), (19, 0))))
-                        ),
-                        rest: Vec::new(),
-                    }
-                    .node_at(Span::from(((4, 0), (19, 0))))
-                }
-                .node_at(Span::from(((0, 0), (20, 0)))),
-                Production {
-                    lhs: "b".to_owned().node_at(Span::from(((33, 0), (34, 0)))),
-                    rhs: Expression::Sequence {
-                        first: Box::new(
-                            Expression::Terminal("a".to_owned())
-                                .node_at(Span::from(((37, 0), (40, 0))))
-                        ),
-                        second: Box::new(
-                            Expression::Alternative {
-                                first: Box::new(
-                                    Expression::Nonterminal("a".to_owned())
-                                        .node_at(Span::from(((43, 0), (44, 0))))
-                                ),
-                                second: Box::new(
-                                    Expression::Terminal("c".to_owned())
-                                        .node_at(Span::from(((47, 0), (50, 0))))
-                                ),
+                (
+                    "a".to_owned(),
+                    vec![Production {
+                        expression: Expression::Alternative {
+                            first: Box::new(Expression::Terminal {
+                                content: "d".to_owned(),
+                                span: Span::from(((4, 0), (6, 0)))
+                            }),
+                            second: Box::new(Expression::Repeated {
+                                inner: Box::new(Expression::Factor {
+                                    count: 2,
+                                    primary: Box::new(Expression::Terminal {
+                                        content: "e".to_owned(),
+                                        span: Span::from(((15, 0), (18, 0)))
+                                    }),
+                                    span: Span::from(((11, 0), (18, 0)))
+                                }),
+                                span: Span::from(((10, 0), (19, 0)))
+                            }),
+                            rest: Vec::new(),
+                            span: Span::from(((4, 0), (19, 0)))
+                        },
+                        identifier_span: Span::from(((0, 0), (1, 0))),
+                        production_span: Span::from(((0, 0), (20, 0)))
+                    }]
+                ),
+                (
+                    "b".to_owned(),
+                    vec![Production {
+                        expression: Expression::Sequence {
+                            first: Box::new(Expression::Terminal {
+                                content: "a".to_owned(),
+                                span: Span::from(((37, 0), (40, 0)))
+                            }),
+                            second: Box::new(Expression::Alternative {
+                                first: Box::new(Expression::Nonterminal {
+                                    identifier: "a".to_owned(),
+                                    span: Span::from(((43, 0), (44, 0)))
+                                }),
+                                second: Box::new(Expression::Terminal {
+                                    content: "c".to_owned(),
+                                    span: Span::from(((47, 0), (50, 0)))
+                                }),
                                 rest: Vec::new(),
-                            }
-                            .node_at(Span::from(((42, 0), (51, 0))))
-                        ),
-                        rest: Vec::new(),
-                    }
-                    .node_at(Span::from(((37, 0), (51, 0))))
-                }
-                .node_at(Span::from(((33, 0), (52, 0))))
+                                span: Span::from(((42, 0), (51, 0)))
+                            }),
+                            rest: Vec::new(),
+                            span: Span::from(((37, 0), (51, 0)))
+                        },
+                        production_span: Span::from(((33, 0), (52, 0))),
+                        identifier_span: Span::from(((33, 0), (34, 0)))
+                    }]
+                )
             ]
+            .into_iter()
+            .collect(),
+            span: Span::from(((0, 0), (52, 0)))
         }
-        .node_at(Span::from(((0, 0), (52, 0))))
     );
 }
