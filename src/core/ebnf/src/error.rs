@@ -1,61 +1,7 @@
+use super::span::{Span, Spanned, Spanning};
 use super::{builder, lexer, parser};
+use crate::impl_spanning;
 use std::fmt;
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Location {
-    pub column: usize,
-    pub line: usize,
-}
-
-impl Location {
-    pub fn new() -> Location {
-        Location { column: 0, line: 0 }
-    }
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
-pub struct Span {
-    pub from: Location,
-    pub to: Location,
-}
-
-impl Span {
-    pub fn new() -> Span {
-        Span {
-            from: Location::new(),
-            to: Location::new(),
-        }
-    }
-
-    pub fn combine(start: &Span, end: &Span) -> Span {
-        Span {
-            from: start.from,
-            to: end.to,
-        }
-    }
-
-    pub fn between(start: &Span, end: &Span) -> Span {
-        Span {
-            from: start.to,
-            to: end.from,
-        }
-    }
-}
-
-impl From<((usize, usize), (usize, usize))> for Span {
-    fn from(tuples: ((usize, usize), (usize, usize))) -> Span {
-        Span {
-            from: Location {
-                column: (tuples.0).0,
-                line: (tuples.0).1,
-            },
-            to: Location {
-                column: (tuples.1).0,
-                line: (tuples.1).1,
-            },
-        }
-    }
-}
 
 #[derive(Debug)]
 pub struct Error {
@@ -70,32 +16,31 @@ pub enum ErrorKind {
     Builder(builder::error::Error),
 }
 
-impl From<lexer::error::Error> for Error {
-    fn from(error: lexer::error::Error) -> Error {
-        let span = error.span.clone();
+impl_spanning!(Error);
+
+impl From<Spanned<lexer::error::Error>> for Error {
+    fn from(error: Spanned<lexer::error::Error>) -> Error {
         Error {
-            kind: ErrorKind::Lexer(error),
-            span,
+            kind: ErrorKind::Lexer(error.node),
+            span: error.span,
         }
     }
 }
 
-impl From<parser::error::Error> for Error {
-    fn from(error: parser::error::Error) -> Error {
-        let span = error.span.clone();
+impl From<Spanned<parser::error::Error>> for Error {
+    fn from(error: Spanned<parser::error::Error>) -> Error {
         Error {
-            kind: ErrorKind::Parser(error),
-            span,
+            kind: ErrorKind::Parser(error.node),
+            span: error.span,
         }
     }
 }
 
-impl From<builder::error::Error> for Error {
-    fn from(error: builder::error::Error) -> Error {
-        let span = error.span.clone();
+impl From<Spanned<builder::error::Error>> for Error {
+    fn from(error: Spanned<builder::error::Error>) -> Error {
         Error {
-            kind: ErrorKind::Builder(error),
-            span,
+            kind: ErrorKind::Builder(error.node),
+            span: error.span,
         }
     }
 }

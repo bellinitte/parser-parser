@@ -1,26 +1,9 @@
-use super::Span;
+use super::{Span, Spanned, Spanning};
+use crate::impl_spanning;
 use std::fmt;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Symbol<'a> {
-    pub grapheme: &'a str,
-    pub span: Span,
-}
-
 #[derive(PartialEq, Debug, Clone)]
-pub struct Token {
-    pub kind: TokenKind,
-    pub span: Span,
-}
-
-impl Token {
-    pub fn new(kind: TokenKind, span: Span) -> Token {
-        Token { kind, span }
-    }
-}
-
-#[derive(PartialEq, Debug, Clone)]
-pub enum TokenKind {
+pub enum Token {
     Nonterminal(String),
     Terminal(String),
     Special(String),
@@ -39,25 +22,27 @@ pub enum TokenKind {
     Terminator,
 }
 
-impl fmt::Display for TokenKind {
+impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TokenKind::Nonterminal(s) => write!(f, "nonterminal '{}'", s),
-            TokenKind::Terminal(s) => write!(f, "terminal '{}'", s),
-            TokenKind::Special(s) => write!(f, "special sequence '?{}?'", s),
-            TokenKind::Integer(i) => write!(f, "integer '{}'", i),
-            TokenKind::Concatenation => write!(f, "cocatenation symbol"),
-            TokenKind::Definition => write!(f, "definition symbol"),
-            TokenKind::DefinitionSeparator => write!(f, "definition separator symbol"),
-            TokenKind::EndGroup => write!(f, "end group symbol"),
-            TokenKind::EndOption => write!(f, "end option symbol"),
-            TokenKind::EndRepeat => write!(f, "end repeat symbol"),
-            TokenKind::Exception => write!(f, "exception symbol"),
-            TokenKind::Repetition => write!(f, "repetition symbol"),
-            TokenKind::StartGroup => write!(f, "start group symbol"),
-            TokenKind::StartOption => write!(f, "start option symbol"),
-            TokenKind::StartRepeat => write!(f, "start repeat symbol"),
-            TokenKind::Terminator => write!(f, "terminator symbol"),
+            Token::Nonterminal(s) => write!(f, "nonterminal '{}'", s),
+            Token::Terminal(s) => write!(f, "terminal '{}'", s),
+            Token::Special(s) => write!(f, "special sequence '?{}?'", s),
+            Token::Integer(i) => write!(f, "integer '{}'", i),
+            Token::Concatenation => write!(f, "cocatenation symbol"),
+            Token::Definition => write!(f, "definition symbol"),
+            Token::DefinitionSeparator => write!(f, "definition separator symbol"),
+            Token::EndGroup => write!(f, "end group symbol"),
+            Token::EndOption => write!(f, "end option symbol"),
+            Token::EndRepeat => write!(f, "end repeat symbol"),
+            Token::Exception => write!(f, "exception symbol"),
+            Token::Repetition => write!(f, "repetition symbol"),
+            Token::StartGroup => write!(f, "start group symbol"),
+            Token::StartOption => write!(f, "start option symbol"),
+            Token::StartRepeat => write!(f, "start repeat symbol"),
+            Token::Terminator => write!(f, "terminator symbol"),
         }
     }
 }
+
+impl_spanning!(Token);

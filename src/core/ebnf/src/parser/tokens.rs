@@ -1,4 +1,4 @@
-use super::{Span, Token};
+use super::{Span, Spanned, Token};
 use nom::{
     Compare, CompareResult, FindSubstring, FindToken, InputIter, InputLength, InputTake, Needed,
     Slice, UnspecializedInput,
@@ -11,12 +11,12 @@ use std::{
 
 #[derive(Debug, Clone)]
 pub struct Tokens<'a> {
-    inner: &'a [Token],
+    inner: &'a [Spanned<Token>],
     last_span: Span,
 }
 
 impl<'a> Tokens<'a> {
-    pub fn new(tokens: &'a [Token]) -> Tokens<'a> {
+    pub fn new(tokens: &'a [Spanned<Token>]) -> Tokens<'a> {
         let first_span = match tokens.iter().next() {
             Some(token) => token.span.clone(),
             None => Span::new(),
@@ -47,9 +47,9 @@ impl<'a> InputLength for Tokens<'a> {
 }
 
 impl<'a> InputIter for Tokens<'a> {
-    type Item = Token;
+    type Item = Spanned<Token>;
     type Iter = Enumerate<Self::IterElem>;
-    type IterElem = Map<Iter<'a, Self::Item>, fn(&Token) -> Token>;
+    type IterElem = Map<Iter<'a, Self::Item>, fn(&Spanned<Token>) -> Spanned<Token>>;
 
     #[inline]
     fn iter_indices(&self) -> Self::Iter {
@@ -58,7 +58,7 @@ impl<'a> InputIter for Tokens<'a> {
 
     #[inline]
     fn iter_elements(&self) -> Self::IterElem {
-        self.inner.iter().map(|t: &Token| t.clone())
+        self.inner.iter().map(|t: &Spanned<Token>| t.clone())
     }
 
     #[inline]
@@ -185,15 +185,15 @@ impl<'a> Slice<RangeFull> for Tokens<'a> {
     }
 }
 
-impl<'a> FindToken<Token> for Tokens<'a> {
-    fn find_token(&self, token: Token) -> bool {
+impl<'a> FindToken<Spanned<Token>> for Tokens<'a> {
+    fn find_token(&self, token: Spanned<Token>) -> bool {
         self.inner.contains(&token)
     }
 }
 
-impl<'a> FindSubstring<&'a [Token]> for Tokens<'a> {
+impl<'a> FindSubstring<&'a [Spanned<Token>]> for Tokens<'a> {
     #[inline]
-    fn find_substring(&self, substr: &'a [Token]) -> Option<usize> {
+    fn find_substring(&self, substr: &'a [Spanned<Token>]) -> Option<usize> {
         let substr_len = substr.len();
 
         if substr_len == 0 {

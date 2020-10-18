@@ -1,14 +1,9 @@
-use super::Span;
+use super::{Span, Spanned, Spanning};
+use crate::impl_spanning;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub span: Span,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum ErrorKind {
+pub enum Error {
     InvalidSymbol(String),
     UnterminatedSpecial,
     UnterminatedComment,
@@ -18,14 +13,16 @@ pub enum ErrorKind {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match &self.kind {
-            ErrorKind::InvalidSymbol(s) => write!(f, "invalid symbol `{}`", s),
-            ErrorKind::UnterminatedSpecial => write!(f, "unterminated special sequence"),
-            ErrorKind::UnterminatedComment => write!(f, "unterminated comment"),
-            ErrorKind::UnterminatedTerminal => write!(f, "unterminated terminal symbol"),
-            ErrorKind::EmptyTerminal => write!(f, "empty terminal symbol"),
+        match &self {
+            Error::InvalidSymbol(s) => write!(f, "invalid symbol `{}`", s),
+            Error::UnterminatedSpecial => write!(f, "unterminated special sequence"),
+            Error::UnterminatedComment => write!(f, "unterminated comment"),
+            Error::UnterminatedTerminal => write!(f, "unterminated terminal symbol"),
+            Error::EmptyTerminal => write!(f, "empty terminal symbol"),
         }
     }
 }
 
 impl std::error::Error for Error {}
+
+impl_spanning!(Error);

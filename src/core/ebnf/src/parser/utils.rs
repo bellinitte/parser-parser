@@ -1,20 +1,17 @@
-use super::{Error, ErrorKind, Expression, Node, NodeAt, Span, Token, TokenKind, Tokens};
+use super::{Error, Expression, Span, Spanned, Spanning, Token, Tokens};
 use nom::{error::ParseError, Err, IResult, InputIter, InputLength, Parser, Slice};
 
 #[macro_export]
 macro_rules! literal {
     ($name:ident, $kind:pat, $error:expr) => {
-        pub fn $name(i: Tokens) -> IResult<Tokens, Node<TokenKind>, Error> {
+        pub fn $name(i: Tokens) -> IResult<Tokens, Spanned<Token>, Spanned<Error>> {
             match i.iter_elements().next() {
-                Some(Token {
-                    kind: kind @ $kind,
+                Some(Spanned {
+                    node: kind @ $kind,
                     span,
-                }) => Ok((i.slice(1..), kind.node_at(span))),
-                Some(Token { span, .. }) => Err(Err::Error(Error { kind: $error, span })),
-                None => Err(Err::Error(Error {
-                    kind: $error,
-                    span: i.last_span(),
-                })),
+                }) => Ok((i.slice(1..), kind.spanning(span))),
+                Some(Spanned { span, .. }) => Err(Err::Error($error.spanning(span))),
+                None => Err(Err::Error($error.spanning(i.last_span()))),
             }
         }
     };
@@ -22,168 +19,143 @@ macro_rules! literal {
 
 literal!(
     concatenation_symbol,
-    TokenKind::Concatenation,
-    ErrorKind::ConcatenationSymbolExpected
+    Token::Concatenation,
+    Error::ConcatenationSymbolExpected
 );
 literal!(
     definition_symbol,
-    TokenKind::Definition,
-    ErrorKind::DefinitionSymbolExpected
+    Token::Definition,
+    Error::DefinitionSymbolExpected
 );
 literal!(
     definition_separator,
-    TokenKind::DefinitionSeparator,
-    ErrorKind::DefinitionSeparatorSymbolExpected
+    Token::DefinitionSeparator,
+    Error::DefinitionSeparatorSymbolExpected
 );
 literal!(
     end_group_symbol,
-    TokenKind::EndGroup,
-    ErrorKind::EndGroupSymbolExpected
+    Token::EndGroup,
+    Error::EndGroupSymbolExpected
 );
 literal!(
     end_option_symbol,
-    TokenKind::EndOption,
-    ErrorKind::EndOptionSymbolExpected
+    Token::EndOption,
+    Error::EndOptionSymbolExpected
 );
 literal!(
     end_repeat_symbol,
-    TokenKind::EndRepeat,
-    ErrorKind::EndRepeatSymbolExpected
+    Token::EndRepeat,
+    Error::EndRepeatSymbolExpected
 );
 literal!(
     exception_symbol,
-    TokenKind::Exception,
-    ErrorKind::ExceptionSymbolExpected
+    Token::Exception,
+    Error::ExceptionSymbolExpected
 );
 literal!(
     repetition_symbol,
-    TokenKind::Repetition,
-    ErrorKind::RepetitionSymbolExpected
+    Token::Repetition,
+    Error::RepetitionSymbolExpected
 );
 literal!(
     start_group_symbol,
-    TokenKind::StartGroup,
-    ErrorKind::StartGroupSymbolExpected
+    Token::StartGroup,
+    Error::StartGroupSymbolExpected
 );
 literal!(
     start_option_symbol,
-    TokenKind::StartOption,
-    ErrorKind::StartOptionSymbolExpected
+    Token::StartOption,
+    Error::StartOptionSymbolExpected
 );
 literal!(
     start_repeat_symbol,
-    TokenKind::StartRepeat,
-    ErrorKind::StartRepeatSymbolExpected
+    Token::StartRepeat,
+    Error::StartRepeatSymbolExpected
 );
 literal!(
     terminator_symbol,
-    TokenKind::Terminator,
-    ErrorKind::TerminatorSymbolExpected
+    Token::Terminator,
+    Error::TerminatorSymbolExpected
 );
 
-pub fn identifier(i: Tokens) -> IResult<Tokens, Node<String>, Error> {
+pub fn identifier(i: Tokens) -> IResult<Tokens, Spanned<String>, Spanned<Error>> {
     match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Nonterminal(s),
+        Some(Spanned {
+            node: Token::Nonterminal(s),
             span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
-        Some(Token { span, .. }) => Err(Err::Error(Error {
-            kind: ErrorKind::IdentifierExpected,
-            span,
-        })),
-        None => Err(Err::Error(Error {
-            kind: ErrorKind::IdentifierExpected,
-            span: i.last_span(),
-        })),
+        }) => Ok((i.slice(1..), s.spanning(span))),
+        Some(Spanned { span, .. }) => Err(Err::Error(Error::IdentifierExpected.spanning(span))),
+        None => Err(Err::Error(
+            Error::IdentifierExpected.spanning(i.last_span()),
+        )),
     }
 }
 
-pub fn nonterminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn nonterminal(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Nonterminal(s),
+        Some(Spanned {
+            node: Token::Nonterminal(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Nonterminal(s).node_at(span))),
-        Some(Token { span, .. }) => Err(Err::Error(Error {
-            kind: ErrorKind::NonterminalExpected,
-            span,
-        })),
-        None => Err(Err::Error(Error {
-            kind: ErrorKind::NonterminalExpected,
-            span: i.last_span(),
-        })),
+        }) => Ok((i.slice(1..), Expression::Nonterminal(s).spanning(span))),
+        Some(Spanned { span, .. }) => Err(Err::Error(Error::NonterminalExpected.spanning(span))),
+        None => Err(Err::Error(
+            Error::NonterminalExpected.spanning(i.last_span()),
+        )),
     }
 }
 
-pub fn terminal(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn terminal(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Terminal(s),
+        Some(Spanned {
+            node: Token::Terminal(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Terminal(s).node_at(span))),
-        Some(Token { span, .. }) => Err(Err::Error(Error {
-            kind: ErrorKind::TerminalExpected,
-            span,
-        })),
-        None => Err(Err::Error(Error {
-            kind: ErrorKind::TerminalExpected,
-            span: i.last_span(),
-        })),
+        }) => Ok((i.slice(1..), Expression::Terminal(s).spanning(span))),
+        Some(Spanned { span, .. }) => Err(Err::Error(Error::TerminalExpected.spanning(span))),
+        None => Err(Err::Error(Error::TerminalExpected.spanning(i.last_span()))),
     }
 }
 
-pub fn special(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn special(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Special(s),
+        Some(Spanned {
+            node: Token::Special(s),
             span,
-        }) => Ok((i.slice(1..), Expression::Special(s).node_at(span))),
-        Some(Token { span, .. }) => Err(Err::Error(Error {
-            kind: ErrorKind::SpecialExpected,
-            span,
-        })),
-        None => Err(Err::Error(Error {
-            kind: ErrorKind::SpecialExpected,
-            span: i.last_span(),
-        })),
+        }) => Ok((i.slice(1..), Expression::Special(s).spanning(span))),
+        Some(Spanned { span, .. }) => Err(Err::Error(Error::SpecialExpected.spanning(span))),
+        None => Err(Err::Error(Error::SpecialExpected.spanning(i.last_span()))),
     }
 }
 
-pub fn integer(i: Tokens) -> IResult<Tokens, Node<usize>, Error> {
+pub fn integer(i: Tokens) -> IResult<Tokens, Spanned<usize>, Spanned<Error>> {
     match i.iter_elements().next() {
-        Some(Token {
-            kind: TokenKind::Integer(s),
+        Some(Spanned {
+            node: Token::Integer(s),
             span,
-        }) => Ok((i.slice(1..), s.node_at(span))),
-        Some(Token { span, .. }) => Err(Err::Error(Error {
-            kind: ErrorKind::IntegerExpected,
-            span,
-        })),
-        None => Err(Err::Error(Error {
-            kind: ErrorKind::IntegerExpected,
-            span: i.last_span(),
-        })),
+        }) => Ok((i.slice(1..), s.spanning(span))),
+        Some(Spanned { span, .. }) => Err(Err::Error(Error::IntegerExpected.spanning(span))),
+        None => Err(Err::Error(Error::IntegerExpected.spanning(i.last_span()))),
     }
 }
 
-pub fn empty(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+pub fn empty(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     let span = match i.iter_elements().next() {
         Some(token) => Span::between(&i.last_span(), &token.span),
         None => i.last_span(),
     };
-    Ok((i, Expression::Empty.node_at(span)))
+    Ok((i, Expression::Empty.spanning(span)))
 }
 
-pub fn non_eof<'a, O, F>(mut f: F) -> impl FnMut(Tokens<'a>) -> IResult<Tokens<'a>, O, Error>
+pub fn non_eof<'a, O, F>(
+    mut f: F,
+) -> impl FnMut(Tokens<'a>) -> IResult<Tokens<'a>, O, Spanned<Error>>
 where
-    F: Parser<Tokens<'a>, O, Error>,
+    F: Parser<Tokens<'a>, O, Spanned<Error>>,
 {
     move |input: Tokens| {
         if input.input_len() == 0 {
-            Err(Err::Error(Error {
-                kind: ErrorKind::IdentifierExpected,
-                span: input.last_span(),
-            }))
+            Err(Err::Error(
+                Error::IdentifierExpected.spanning(input.last_span()),
+            ))
         } else {
             let (input, res) = f.parse(input)?;
             Ok((input, res))

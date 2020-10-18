@@ -1,6 +1,6 @@
-use super::error::{Location, Span};
-use error::{Error, ErrorKind};
-pub use token::{Symbol, Token, TokenKind};
+use super::span::{Location, Span, Spanned, Spanning};
+use error::Error;
+pub use token::Token;
 use unicode_segmentation::UnicodeSegmentation;
 
 pub mod error;
@@ -44,7 +44,7 @@ fn is_alphanumeric<'a>(string: &'a str) -> bool {
     }
 }
 
-fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
+fn scan<'a>(string: &'a str) -> Result<Vec<Spanned<&'a str>>, Spanned<Error>> {
     string
         .graphemes(true)
         .scan(Location::new(), |location, grapheme| {
@@ -57,8 +57,8 @@ fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
                 }
                 _ => {}
             }
-            Some(Symbol {
-                grapheme,
+            Some(Spanned {
+                node: grapheme,
                 span: Span {
                     from: current_location,
                     to: *location,
@@ -66,10 +66,10 @@ fn scan<'a>(string: &'a str) -> Result<Vec<Symbol>, Error> {
             })
         })
         .map(|symbol| Ok(symbol))
-        .collect::<Result<Vec<Symbol>, Error>>()
+        .collect::<Result<Vec<Spanned<&'a str>>, Spanned<Error>>>()
 }
 
-pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
+pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
     let symbols = scan(string)?;
 
     let mut tokens = Vec::new();
@@ -78,23 +78,21 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
     'tokens: loop {
         'gap: loop {
             match symbols.get(i).as_ref() {
-                Some(Symbol { grapheme: c, .. }) if is_whitespace(c) => {
+                Some(Spanned { node: c, .. }) if is_whitespace(c) => {
                     i += 1;
                 }
-                Some(Symbol {
-                    grapheme: "(",
+                Some(Spanned {
+                    node: "(",
                     span: os,
                 }) => match symbols.get(i + 1) {
-                    Some(Symbol { grapheme: "*", .. }) => {
+                    Some(Spanned { node: "*", .. }) => {
                         match symbols.get(i + 2) {
-                            Some(Symbol {
-                                grapheme: ")",
+                            Some(Spanned {
+                                node: ")",
                                 span: oe,
                             }) => {
-                                return Err(Error {
-                                    kind: ErrorKind::InvalidSymbol("(*)".to_owned()),
-                                    span: Span::combine(os, oe),
-                                })
+                                return Err(Error::InvalidSymbol("(*)".to_owned())
+                                    .spanning(Span::combine(os, oe)))
                             }
                             _ => {}
                         }
@@ -103,22 +101,18 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
                         // comment
                         while nest_level != 0 {
                             match symbols.get(i) {
-                                Some(Symbol {
-                                    grapheme: "(",
+                                Some(Spanned {
+                                    node: "(",
                                     span: os,
                                 }) => match symbols.get(i + 1) {
-                                    Some(Symbol { grapheme: "*", .. }) => {
+                                    Some(Spanned { node: "*", .. }) => {
                                         match symbols.get(i + 2) {
-                                            Some(Symbol {
-                                                grapheme: ")",
+                                            Some(Spanned {
+                                                node: ")",
                                                 span: oe,
                                             }) => {
-                                                return Err(Error {
-                                                    kind: ErrorKind::InvalidSymbol(
-                                                        "(*)".to_owned(),
-                                                    ),
-                                                    span: Span::combine(os, oe),
-                                                })
+                                                return Err(Error::InvalidSymbol("(*)".to_owned())
+                                                    .spanning(Span::combine(os, oe)))
                                             }
                                             _ => {}
                                         }
@@ -129,8 +123,8 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
                                         i += 1;
                                     }
                                 },
-                                Some(Symbol { grapheme: "*", .. }) => match symbols.get(i + 1) {
-                                    Some(Symbol { grapheme: ")", .. }) => {
+                                Some(Spanned { node: "*", .. }) => match symbols.get(i + 1) {
+                                    Some(Spanned { node: ")", .. }) => {
                                         i += 2;
                                         nest_level -= 1;
                                     }
@@ -142,10 +136,8 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
                                     i += 1;
                                 }
                                 None => {
-                                    return Err(Error {
-                                        kind: ErrorKind::UnterminatedComment,
-                                        span: symbols.get(i - 1).unwrap().span,
-                                    })
+                                    return Err(Error::UnterminatedComment
+                                        .spanning(symbols.get(i - 1).unwrap().span))
                                 }
                             };
                         }
@@ -156,178 +148,124 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
             };
         }
         match symbols.get(i) {
-            Some(Symbol {
-                grapheme: ",",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::Concatenation, *span));
+            Some(Spanned { node: ",", span }) => {
+                tokens.push(Token::Concatenation.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "=",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::Definition, *span));
+            Some(Spanned { node: "=", span }) => {
+                tokens.push(Token::Definition.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "|",
-                span,
-            })
-            | Some(Symbol {
-                grapheme: "!",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::DefinitionSeparator, *span));
+            Some(Spanned { node: "|", span }) | Some(Spanned { node: "!", span }) => {
+                tokens.push(Token::DefinitionSeparator.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: ")",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::EndGroup, *span));
+            Some(Spanned { node: ")", span }) => {
+                tokens.push(Token::EndGroup.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "]",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::EndOption, *span));
+            Some(Spanned { node: "]", span }) => {
+                tokens.push(Token::EndOption.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "/",
+            Some(Spanned {
+                node: "/",
                 span: start,
             }) => match symbols.get(i + 1) {
-                Some(Symbol {
-                    grapheme: ")",
+                Some(Spanned {
+                    node: ")",
                     span: end,
                 }) => {
-                    tokens.push(Token::new(TokenKind::EndOption, Span::combine(start, end)));
+                    tokens.push(Token::EndOption.spanning(Span::combine(start, end)));
                     i += 2;
                 }
                 _ => {
-                    tokens.push(Token::new(TokenKind::DefinitionSeparator, *start));
+                    tokens.push(Token::DefinitionSeparator.spanning(*start));
                     i += 1;
                 }
             },
-            Some(Symbol {
-                grapheme: "}",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::EndRepeat, *span));
+            Some(Spanned { node: "}", span }) => {
+                tokens.push(Token::EndRepeat.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: ":",
+            Some(Spanned {
+                node: ":",
                 span: start,
             }) => match symbols.get(i + 1) {
-                Some(Symbol {
-                    grapheme: ")",
+                Some(Spanned {
+                    node: ")",
                     span: end,
                 }) => {
-                    tokens.push(Token::new(TokenKind::EndRepeat, Span::combine(start, end)));
+                    tokens.push(Token::EndRepeat.spanning(Span::combine(start, end)));
                     i += 2;
                 }
                 _ => {
-                    return Err(Error {
-                        kind: ErrorKind::InvalidSymbol(':'.to_string()),
-                        span: *start,
-                    });
+                    return Err(Error::InvalidSymbol(':'.to_string()).spanning(*start));
                 }
             },
-            Some(Symbol {
-                grapheme: "-",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::Exception, *span));
+            Some(Spanned { node: "-", span }) => {
+                tokens.push(Token::Exception.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "*",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::Repetition, *span));
+            Some(Spanned { node: "*", span }) => {
+                tokens.push(Token::Repetition.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "(",
+            Some(Spanned {
+                node: "(",
                 span: start,
             }) => match symbols.get(i + 1) {
-                Some(Symbol {
-                    grapheme: "/",
+                Some(Spanned {
+                    node: "/",
                     span: middle,
                 }) => match symbols.get(i + 2) {
-                    Some(Symbol {
-                        grapheme: ")",
+                    Some(Spanned {
+                        node: ")",
                         span: end,
                     }) => {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidSymbol("(/)".to_owned()),
-                            span: Span::combine(start, end),
-                        });
+                        return Err(Error::InvalidSymbol("(/)".to_owned())
+                            .spanning(Span::combine(start, end)));
                     }
                     _ => {
-                        tokens.push(Token::new(
-                            TokenKind::StartOption,
-                            Span::combine(start, middle),
-                        ));
+                        tokens.push(Token::StartOption.spanning(Span::combine(start, middle)));
                         i += 2;
                     }
                 },
-                Some(Symbol {
-                    grapheme: ":",
+                Some(Spanned {
+                    node: ":",
                     span: middle,
                 }) => match symbols.get(i + 2) {
-                    Some(Symbol {
-                        grapheme: ")",
+                    Some(Spanned {
+                        node: ")",
                         span: end,
                     }) => {
-                        return Err(Error {
-                            kind: ErrorKind::InvalidSymbol("(:)".to_owned()),
-                            span: Span::combine(start, end),
-                        });
+                        return Err(Error::InvalidSymbol("(:)".to_owned())
+                            .spanning(Span::combine(start, end)));
                     }
                     _ => {
-                        tokens.push(Token::new(
-                            TokenKind::StartRepeat,
-                            Span::combine(start, middle),
-                        ));
+                        tokens.push(Token::StartRepeat.spanning(Span::combine(start, middle)));
                         i += 2;
                     }
                 },
                 _ => {
-                    tokens.push(Token::new(TokenKind::StartGroup, *start));
+                    tokens.push(Token::StartGroup.spanning(*start));
                     i += 1;
                 }
             },
-            Some(Symbol {
-                grapheme: "[",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::StartOption, *span));
+            Some(Spanned { node: "[", span }) => {
+                tokens.push(Token::StartOption.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: "{",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::StartRepeat, *span));
+            Some(Spanned { node: "{", span }) => {
+                tokens.push(Token::StartRepeat.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: ";",
-                span,
-            })
-            | Some(Symbol {
-                grapheme: ".",
-                span,
-            }) => {
-                tokens.push(Token::new(TokenKind::Terminator, *span));
+            Some(Spanned { node: ";", span }) | Some(Spanned { node: ".", span }) => {
+                tokens.push(Token::Terminator.spanning(*span));
                 i += 1;
             }
-            Some(Symbol {
-                grapheme: quote,
+            Some(Spanned {
+                node: quote,
                 span: os,
             }) if *quote == "\'" || *quote == "\"" => {
                 let mut string = String::new();
@@ -335,135 +273,100 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Token>, Error> {
                 i += 1;
                 'terminal: loop {
                     match symbols.get(i) {
-                        Some(Symbol {
-                            grapheme: c,
-                            span: oe,
-                        }) if c == quote => {
+                        Some(Spanned { node: c, span: oe }) if c == quote => {
                             if len == 0 {
-                                return Err(Error {
-                                    kind: ErrorKind::EmptyTerminal,
-                                    span: Span::combine(os, oe),
-                                });
+                                return Err(Error::EmptyTerminal.spanning(Span::combine(os, oe)));
                             } else {
-                                tokens.push(Token::new(
-                                    TokenKind::Terminal(string),
-                                    Span::combine(os, oe),
-                                ));
+                                tokens
+                                    .push(Token::Terminal(string).spanning(Span::combine(os, oe)));
                                 i += 1;
                                 break 'terminal;
                             }
                         }
-                        Some(Symbol { grapheme: c, .. }) => {
+                        Some(Spanned { node: c, .. }) => {
                             string.push_str(c);
                             i += 1;
                             len += 1;
                         }
                         None => {
-                            return Err(Error {
-                                kind: ErrorKind::UnterminatedTerminal,
-                                span: symbols.get(i - 1).unwrap().span,
-                            })
+                            return Err(Error::UnterminatedTerminal
+                                .spanning(symbols.get(i - 1).unwrap().span))
                         }
                     }
                 }
             }
-            Some(Symbol {
-                grapheme: "?",
+            Some(Spanned {
+                node: "?",
                 span: os,
             }) => {
                 let mut string = String::new();
                 i += 1;
                 'special: loop {
                     match symbols.get(i) {
-                        Some(Symbol {
-                            grapheme: "?",
+                        Some(Spanned {
+                            node: "?",
                             span: oe,
                         }) => {
-                            tokens.push(Token::new(
-                                TokenKind::Special(string),
-                                Span::combine(os, oe),
-                            ));
+                            tokens.push(Token::Special(string).spanning(Span::combine(os, oe)));
                             i += 1;
                             break 'special;
                         }
-                        Some(Symbol { grapheme: c, .. }) => {
+                        Some(Spanned { node: c, .. }) => {
                             string.push_str(c);
                             i += 1;
                         }
                         None => {
-                            return Err(Error {
-                                kind: ErrorKind::UnterminatedSpecial,
-                                span: symbols.get(i - 1).unwrap().span,
-                            })
+                            return Err(Error::UnterminatedSpecial
+                                .spanning(symbols.get(i - 1).unwrap().span))
                         }
                     }
                 }
             }
-            Some(Symbol {
-                grapheme: c,
-                span: os,
-            }) if is_digit(c) => {
+            Some(Spanned { node: c, span: os }) if is_digit(c) => {
                 let mut oe = *os;
                 let mut integer = to_digit(c).unwrap() as usize;
                 i += 1;
                 'integer: loop {
                     match symbols.get(i) {
-                        Some(Symbol {
-                            grapheme: c,
-                            span: o,
-                        }) if is_digit(c) => {
+                        Some(Spanned { node: c, span: o }) if is_digit(c) => {
                             integer = integer * 10 + to_digit(c).unwrap() as usize;
                             oe = *o;
                             i += 1;
                         }
-                        Some(Symbol { grapheme: c, .. }) if is_whitespace(c) => {
+                        Some(Spanned { node: c, .. }) if is_whitespace(c) => {
                             i += 1;
                         }
                         _ => {
-                            tokens.push(Token::new(
-                                TokenKind::Integer(integer),
-                                Span::combine(os, &oe),
-                            ));
+                            tokens.push(Token::Integer(integer).spanning(Span::combine(os, &oe)));
                             break 'integer;
                         }
                     }
                 }
             }
-            Some(Symbol {
-                grapheme: c,
-                span: os,
-            }) if is_alphabetic(c) => {
+            Some(Spanned { node: c, span: os }) if is_alphabetic(c) => {
                 let mut oe = *os;
                 let mut string = c.to_string();
                 i += 1;
                 'nonterminal: loop {
                     match symbols.get(i) {
-                        Some(Symbol {
-                            grapheme: c,
-                            span: o,
-                        }) if is_alphanumeric(c) => {
+                        Some(Spanned { node: c, span: o }) if is_alphanumeric(c) => {
                             string.push_str(c);
                             oe = *o;
                             i += 1;
                         }
-                        Some(Symbol { grapheme: c, .. }) if is_whitespace(c) => {
+                        Some(Spanned { node: c, .. }) if is_whitespace(c) => {
                             i += 1;
                         }
                         _ => {
-                            tokens.push(Token::new(
-                                TokenKind::Nonterminal(string),
-                                Span::combine(os, &oe),
-                            ));
+                            tokens
+                                .push(Token::Nonterminal(string).spanning(Span::combine(os, &oe)));
                             break 'nonterminal;
                         }
                     }
                 }
             }
-            Some(Symbol { grapheme: c, span }) => {
-                return Err(Error {
-                    kind: ErrorKind::InvalidSymbol((*c).to_string()),
-                    span: *span,
-                });
+            Some(Spanned { node: c, span }) => {
+                return Err(Error::InvalidSymbol((*c).to_string()).spanning(*span));
             }
             None => break 'tokens,
         }

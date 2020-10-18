@@ -1,37 +1,38 @@
-use super::{Span, TokenKind};
+use super::{Span, Spanned, Spanning};
+use crate::impl_spanning;
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Grammar {
-    pub productions: Vec<Node<Production>>,
+    pub productions: Vec<Spanned<Production>>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Production {
-    pub lhs: Node<String>,
-    pub rhs: Node<Expression>,
+    pub lhs: Spanned<String>,
+    pub rhs: Spanned<Expression>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum Expression {
     Alternative {
-        first: Box<Node<Expression>>,
-        second: Box<Node<Expression>>,
-        rest: Vec<Node<Expression>>,
+        first: Box<Spanned<Expression>>,
+        second: Box<Spanned<Expression>>,
+        rest: Vec<Spanned<Expression>>,
     },
     Sequence {
-        first: Box<Node<Expression>>,
-        second: Box<Node<Expression>>,
-        rest: Vec<Node<Expression>>,
+        first: Box<Spanned<Expression>>,
+        second: Box<Spanned<Expression>>,
+        rest: Vec<Spanned<Expression>>,
     },
-    Optional(Box<Node<Expression>>),
-    Repeated(Box<Node<Expression>>),
+    Optional(Box<Spanned<Expression>>),
+    Repeated(Box<Spanned<Expression>>),
     Factor {
-        count: Node<usize>,
-        primary: Box<Node<Expression>>,
+        count: Spanned<usize>,
+        primary: Box<Spanned<Expression>>,
     },
     Exception {
-        subject: Box<Node<Expression>>,
-        restriction: Box<Node<Expression>>,
+        subject: Box<Spanned<Expression>>,
+        restriction: Box<Spanned<Expression>>,
     },
     Nonterminal(String),
     Terminal(String),
@@ -39,50 +40,6 @@ pub enum Expression {
     Empty,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub struct Node<T> {
-    pub inner: T,
-    pub span: Span,
-}
-
-impl<T> Node<T> {
-    pub fn new(inner: T, span: Span) -> Node<T> {
-        Node { inner, span }
-    }
-}
-
-pub trait NodeAt
-where
-    Self: Sized,
-{
-    fn node_at(self, span: Span) -> Node<Self>;
-    fn node_from_to(self, from: (usize, usize), to: (usize, usize)) -> Node<Self>;
-}
-
-#[macro_export]
-macro_rules! impl_node_at {
-    ($impl_type:ty) => {
-        impl NodeAt for $impl_type {
-            fn node_at(self, span: Span) -> Node<$impl_type> {
-                Node {
-                    inner: self,
-                    span: span,
-                }
-            }
-
-            fn node_from_to(self, from: (usize, usize), to: (usize, usize)) -> Node<$impl_type> {
-                Node {
-                    inner: self,
-                    span: Span::from((from, to)),
-                }
-            }
-        }
-    };
-}
-
-impl_node_at!(Grammar);
-impl_node_at!(Production);
-impl_node_at!(Expression);
-impl_node_at!(TokenKind);
-impl_node_at!(String);
-impl_node_at!(usize);
+impl_spanning!(Grammar);
+impl_spanning!(Production);
+impl_spanning!(Expression);

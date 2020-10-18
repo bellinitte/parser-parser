@@ -1,4 +1,5 @@
-use super::Span;
+use super::{Span, Spanned, Spanning};
+use crate::impl_spanning;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
@@ -19,3 +20,5 @@ impl fmt::Display for Error {
 }
 
 impl std::error::Error for Error {}
+
+impl_spanning!(Error);

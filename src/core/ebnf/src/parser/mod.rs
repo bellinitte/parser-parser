@@ -1,7 +1,7 @@
-use super::error::Span;
-use super::lexer::{Token, TokenKind};
-pub use ast::{Expression, Grammar, Node, NodeAt, Production};
-use error::{Error, ErrorKind};
+use super::lexer::Token;
+use super::span::{Span, Spanned, Spanning};
+pub use ast::{Expression, Grammar, Production};
+use error::Error;
 use nom::{
     branch::alt,
     combinator::{cut, map, opt},
@@ -19,32 +19,32 @@ mod tests;
 mod tokens;
 mod utils;
 
-fn grouped(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn grouped(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         tuple((start_group_symbol, alternative, cut(end_group_symbol))),
-        |(open, node, close)| node.inner.node_at(Span::combine(&open.span, &close.span)),
+        |(open, expr, close)| expr.node.spanning(Span::combine(&open.span, &close.span)),
     )(i)
 }
 
-fn repeated(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn repeated(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         tuple((start_repeat_symbol, alternative, cut(end_repeat_symbol))),
         |(open, node, close)| {
-            Expression::Repeated(Box::new(node)).node_at(Span::combine(&open.span, &close.span))
+            Expression::Repeated(Box::new(node)).spanning(Span::combine(&open.span, &close.span))
         },
     )(i)
 }
 
-fn optional(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn optional(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         tuple((start_option_symbol, alternative, cut(end_option_symbol))),
         |(open, node, close)| {
-            Expression::Optional(Box::new(node)).node_at(Span::combine(&open.span, &close.span))
+            Expression::Optional(Box::new(node)).spanning(Span::combine(&open.span, &close.span))
         },
     )(i)
 }
 
-fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn factor(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         pair(
             opt(terminated(integer, cut(repetition_symbol))),
@@ -59,9 +59,9 @@ fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
             )),
         ),
         |(repetition, node)| match (repetition, node) {
-            (Some(count @ Node { inner: 0, .. }), node) => {
+            (Some(count @ Spanned { node: 0, .. }), node) => {
                 let span = Span::combine(&count.span, &node.span);
-                Expression::Empty.node_at(span)
+                Expression::Empty.spanning(span)
             }
             (Some(count), node) => {
                 let span = Span::combine(&count.span, &node.span);
@@ -69,14 +69,14 @@ fn factor(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
                     count,
                     primary: Box::new(node),
                 }
-                .node_at(span)
+                .spanning(span)
             }
             (None, node) => node,
         },
     )(i)
 }
 
-fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn term(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         pair(factor, opt(preceded(exception_symbol, cut(factor)))),
         |(primary, exception)| match exception {
@@ -87,13 +87,13 @@ fn term(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
                     subject: Box::new(primary),
                     restriction: Box::new(ex),
                 }
-                .node_at(span)
+                .spanning(span)
             }
         },
     )(i)
 }
 
-fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn sequence(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map(
         separated_list1(concatenation_symbol, term),
         |nodes| match nodes.len() {
@@ -103,12 +103,12 @@ fn sequence(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
                 second: Box::new(nodes[1].clone()),
                 rest: nodes[2..].to_vec(),
             }
-            .node_at(Span::combine(&nodes[0].span, &nodes[nodes.len() - 1].span)),
+            .spanning(Span::combine(&nodes[0].span, &nodes[nodes.len() - 1].span)),
         },
     )(i)
 }
 
-fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
+fn alternative(i: Tokens) -> IResult<Tokens, Spanned<Expression>, Spanned<Error>> {
     map_err(
         map(
             separated_list1(definition_separator, sequence),
@@ -119,23 +119,20 @@ fn alternative(i: Tokens) -> IResult<Tokens, Node<Expression>, Error> {
                     second: Box::new(nodes[1].clone()),
                     rest: nodes[2..].to_vec(),
                 }
-                .node_at(Span::combine(&nodes[0].span, &nodes[nodes.len() - 1].span)),
+                .spanning(Span::combine(&nodes[0].span, &nodes[nodes.len() - 1].span)),
             },
         ),
         |e| match e {
-            Error {
-                kind: ErrorKind::Nom(nom::error::ErrorKind::SeparatedList),
+            Spanned {
+                node: Error::Nom(nom::error::ErrorKind::SeparatedList),
                 span,
-            } => Error {
-                kind: ErrorKind::DefinitionExpected,
-                span,
-            },
+            } => Error::DefinitionExpected.spanning(span),
             e => e,
         },
     )(i)
 }
 
-fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
+fn production(i: Tokens) -> IResult<Tokens, Spanned<Production>, Spanned<Error>> {
     map(
         non_eof(cut(pair(
             separated_pair(identifier, definition_symbol, alternative),
@@ -144,27 +141,27 @@ fn production(i: Tokens) -> IResult<Tokens, Node<Production>, Error> {
         |((identifier, definitions), terminator)| {
             let span = Span::combine(&identifier.span, &terminator.span);
             Production {
-                lhs: Node::new(identifier.inner, identifier.span),
+                lhs: identifier,
                 rhs: definitions,
             }
-            .node_at(span)
+            .spanning(span)
         },
     )(i)
 }
 
-fn syntax(i: Tokens) -> IResult<Tokens, Node<Grammar>, Error> {
+fn syntax(i: Tokens) -> IResult<Tokens, Spanned<Grammar>, Spanned<Error>> {
     map(many1(production), |productions| {
         let span = Span::combine(
             &productions[0].span,
             &productions[productions.len() - 1].span,
         );
-        Grammar { productions }.node_at(span)
+        Grammar { productions }.spanning(span)
     })(i)
 }
 
-pub(super) fn parse<'a>(tokens: &'a [Token]) -> Result<Grammar, Error> {
+pub(super) fn parse<'a>(tokens: &'a [Spanned<Token>]) -> Result<Spanned<Grammar>, Spanned<Error>> {
     match syntax(Tokens::new(&tokens)) {
-        Ok((_, grammar)) => Ok(grammar.inner),
+        Ok((_, grammar)) => Ok(grammar),
         Err(nom::Err::Failure(inner)) => Err(inner.into()),
         Err(nom::Err::Error(inner)) => Err(inner.into()),
         _ => unreachable!(),

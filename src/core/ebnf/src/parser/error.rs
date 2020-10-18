@@ -1,16 +1,11 @@
-use super::Span;
 use super::Tokens;
+use super::{Span, Spanned, Spanning};
+use crate::impl_spanning;
 use nom::InputIter;
 use std::fmt;
 
 #[derive(Debug, PartialEq)]
-pub struct Error {
-    pub kind: ErrorKind,
-    pub span: Span,
-}
-
-#[derive(Debug, PartialEq)]
-pub enum ErrorKind {
+pub enum Error {
     DefinitionExpected,
     IdentifierExpected,
     NonterminalExpected,
@@ -32,16 +27,15 @@ pub enum ErrorKind {
     Nom(nom::error::ErrorKind),
 }
 
-impl<'a> nom::error::ParseError<Tokens<'a>> for Error {
+impl_spanning!(Error);
+
+impl<'a> nom::error::ParseError<Tokens<'a>> for Spanned<Error> {
     fn from_error_kind(input: Tokens<'a>, e: nom::error::ErrorKind) -> Self {
         let span = match input.iter_elements().next() {
             Some(token) => token.span,
             None => input.last_span(),
         };
-        Error {
-            kind: ErrorKind::Nom(e),
-            span,
-        }
+        Error::Nom(e).spanning(span)
     }
 
     fn append(_: Tokens<'a>, _: nom::error::ErrorKind, other: Self) -> Self {
@@ -51,28 +45,28 @@ impl<'a> nom::error::ParseError<Tokens<'a>> for Error {
 
 impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.kind {
-            ErrorKind::DefinitionExpected => write!(f, "definition expected"),
-            ErrorKind::IdentifierExpected => write!(f, "identifier expected"),
-            ErrorKind::NonterminalExpected => write!(f, "nonterminal expected"),
-            ErrorKind::TerminalExpected => write!(f, "terminal expected"),
-            ErrorKind::SpecialExpected => write!(f, "special sequence expected"),
-            ErrorKind::IntegerExpected => write!(f, "integer expected"),
-            ErrorKind::ConcatenationSymbolExpected => write!(f, "concatenation symbol expected"),
-            ErrorKind::DefinitionSymbolExpected => write!(f, "definition symbol expected"),
-            ErrorKind::DefinitionSeparatorSymbolExpected => {
+        match self {
+            Error::DefinitionExpected => write!(f, "definition expected"),
+            Error::IdentifierExpected => write!(f, "identifier expected"),
+            Error::NonterminalExpected => write!(f, "nonterminal expected"),
+            Error::TerminalExpected => write!(f, "terminal expected"),
+            Error::SpecialExpected => write!(f, "special sequence expected"),
+            Error::IntegerExpected => write!(f, "integer expected"),
+            Error::ConcatenationSymbolExpected => write!(f, "concatenation symbol expected"),
+            Error::DefinitionSymbolExpected => write!(f, "definition symbol expected"),
+            Error::DefinitionSeparatorSymbolExpected => {
                 write!(f, "definition separator symbol expected")
             }
-            ErrorKind::EndGroupSymbolExpected => write!(f, "end group symbol expected"),
-            ErrorKind::EndOptionSymbolExpected => write!(f, "end option symbol expected"),
-            ErrorKind::EndRepeatSymbolExpected => write!(f, "end repeat symbol expected"),
-            ErrorKind::ExceptionSymbolExpected => write!(f, "exception symbol expected"),
-            ErrorKind::RepetitionSymbolExpected => write!(f, "repetition symbol expected"),
-            ErrorKind::StartGroupSymbolExpected => write!(f, "start group symbol expected"),
-            ErrorKind::StartOptionSymbolExpected => write!(f, "start option symbol expected"),
-            ErrorKind::StartRepeatSymbolExpected => write!(f, "start repeat symbol expected"),
-            ErrorKind::TerminatorSymbolExpected => write!(f, "terminator symbol expected"),
-            ErrorKind::Nom(_) => write!(f, "internal error"),
+            Error::EndGroupSymbolExpected => write!(f, "end group symbol expected"),
+            Error::EndOptionSymbolExpected => write!(f, "end option symbol expected"),
+            Error::EndRepeatSymbolExpected => write!(f, "end repeat symbol expected"),
+            Error::ExceptionSymbolExpected => write!(f, "exception symbol expected"),
+            Error::RepetitionSymbolExpected => write!(f, "repetition symbol expected"),
+            Error::StartGroupSymbolExpected => write!(f, "start group symbol expected"),
+            Error::StartOptionSymbolExpected => write!(f, "start option symbol expected"),
+            Error::StartRepeatSymbolExpected => write!(f, "start repeat symbol expected"),
+            Error::TerminatorSymbolExpected => write!(f, "terminator symbol expected"),
+            Error::Nom(_) => write!(f, "internal error"),
         }
     }
 }
