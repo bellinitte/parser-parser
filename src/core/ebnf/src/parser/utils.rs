@@ -175,7 +175,7 @@ where
 {
     move |i: I| {
         let mut res = Vec::new();
-        let mut i = i.clone();
+        let mut i = i;
 
         // Parse the first element
         match f.parse(i.clone()) {

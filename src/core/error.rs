@@ -57,7 +57,7 @@ impl Into<JsValue> for Error {
                     Reflect::set(&error, &"kind".into(), &inner.to_string().into()).unwrap();
                     Reflect::set(&error, &"span".into(), &span.into()).unwrap();
                 }
-                return error.into();
+                error.into()
             }
         }
     }

@@ -18,7 +18,7 @@ pub struct Tokens<'a> {
 impl<'a> Tokens<'a> {
     pub fn new(tokens: &'a [Spanned<Token>]) -> Tokens<'a> {
         let first_span = match tokens.iter().next() {
-            Some(token) => token.span.clone(),
+            Some(token) => token.span,
             None => Span::new(),
         };
         Tokens {
@@ -28,7 +28,7 @@ impl<'a> Tokens<'a> {
     }
 
     pub fn last_span(&self) -> Span {
-        self.last_span.clone()
+        self.last_span
     }
 }
 
@@ -86,21 +86,21 @@ where
     fn take(&self, count: usize) -> Self {
         Tokens {
             inner: &self.inner[0..count],
-            last_span: self.last_span.clone(),
+            last_span: self.last_span,
         }
     }
 
     fn take_split(&self, count: usize) -> (Self, Self) {
         let (prefix, suffix) = self.inner.split_at(count);
         let last_span = if count > 0 {
-            self.inner[count - 1].span.clone()
+            self.inner[count - 1].span
         } else {
-            self.last_span.clone()
+            self.last_span
         };
         (
             Tokens {
                 inner: suffix,
-                last_span: self.last_span.clone(),
+                last_span: self.last_span,
             },
             Tokens {
                 inner: prefix,
@@ -142,9 +142,9 @@ impl<'a> Compare<Tokens<'a>> for Tokens<'a> {
 impl<'a> Slice<Range<usize>> for Tokens<'a> {
     fn slice(&self, range: Range<usize>) -> Tokens<'a> {
         let last_span = if range.start > 0 {
-            self.inner[range.start - 1].span.clone()
+            self.inner[range.start - 1].span
         } else {
-            self.last_span.clone()
+            self.last_span
         };
         Tokens {
             inner: &self.inner[range],
@@ -157,7 +157,7 @@ impl<'a> Slice<RangeTo<usize>> for Tokens<'a> {
     fn slice(&self, range: RangeTo<usize>) -> Tokens<'a> {
         Tokens {
             inner: &self.inner[range],
-            last_span: self.last_span.clone(),
+            last_span: self.last_span,
         }
     }
 }
@@ -165,9 +165,9 @@ impl<'a> Slice<RangeTo<usize>> for Tokens<'a> {
 impl<'a> Slice<RangeFrom<usize>> for Tokens<'a> {
     fn slice(&self, range: RangeFrom<usize>) -> Tokens<'a> {
         let last_span = if range.start > 0 {
-            self.inner[range.start - 1].span.clone()
+            self.inner[range.start - 1].span
         } else {
-            self.last_span.clone()
+            self.last_span
         };
         Tokens {
             inner: &self.inner[range],
@@ -180,7 +180,7 @@ impl<'a> Slice<RangeFull> for Tokens<'a> {
     fn slice(&self, range: RangeFull) -> Tokens<'a> {
         Tokens {
             inner: &self.inner[range],
-            last_span: self.last_span.clone(),
+            last_span: self.last_span,
         }
     }
 }

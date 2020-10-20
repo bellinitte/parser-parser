@@ -8,40 +8,28 @@ pub mod error;
 mod tests;
 pub mod token;
 
-fn is_whitespace<'a>(string: &'a str) -> bool {
+fn is_whitespace(string: & str) -> bool {
     match string {
         "\n" | "\r" | "\r\n" => return true,
         _ => {}
     }
-    match string.chars().next() {
-        Some(ch) if ch.is_whitespace() => true,
-        _ => false,
-    }
+    matches!(string.chars().next(), Some(ch) if ch.is_whitespace())
 }
 
-fn is_digit<'a>(string: &'a str) -> bool {
-    match string.chars().next() {
-        Some(ch) if ch.is_digit(10) => true,
-        _ => false,
-    }
+fn is_digit(string: &str) -> bool {
+    matches!(string.chars().next(), Some(ch) if ch.is_digit(10))
 }
 
-fn to_digit<'a>(string: &'a str) -> Option<u32> {
+fn to_digit(string: &str) -> Option<u32> {
     string.chars().next().and_then(|ch| ch.to_digit(10))
 }
 
-fn is_alphabetic<'a>(string: &'a str) -> bool {
-    match string.chars().next() {
-        Some(ch) if ch.is_alphabetic() => true,
-        _ => false,
-    }
+fn is_alphabetic(string: &str) -> bool {
+    matches!(string.chars().next(), Some(ch) if ch.is_alphabetic())
 }
 
-fn is_alphanumeric<'a>(string: &'a str) -> bool {
-    match string.chars().next() {
-        Some(ch) if ch.is_alphanumeric() => true,
-        _ => false,
-    }
+fn is_alphanumeric(string: &str) -> bool {
+    matches!(string.chars().next(), Some(ch) if ch.is_alphanumeric())
 }
 
 fn scan<'a>(string: &'a str) -> Result<Vec<Spanned<&'a str>>, Spanned<Error>> {
@@ -65,11 +53,11 @@ fn scan<'a>(string: &'a str) -> Result<Vec<Spanned<&'a str>>, Spanned<Error>> {
                 },
             })
         })
-        .map(|symbol| Ok(symbol))
+        .map(Ok)
         .collect::<Result<Vec<Spanned<&'a str>>, Spanned<Error>>>()
 }
 
-pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
+pub(super) fn lex(string: &str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
     let symbols = scan(string)?;
 
     let mut tokens = Vec::new();
@@ -372,5 +360,5 @@ pub(super) fn lex<'a>(string: &'a str) -> Result<Vec<Spanned<Token>>, Spanned<Er
         }
     }
 
-    return Ok(tokens);
+    Ok(tokens)
 }

@@ -22,10 +22,9 @@ fn check_expr<'a>(
                 Ok((rest, output)) => return Ok((rest, output)),
                 Err(()) => {}
             }
-            let mut iter = rest.iter();
-            while let Some(Spanned {
+            for Spanned {
                 node: expression, ..
-            }) = iter.next()
+            } in rest.iter()
             {
                 match check_expr(input, expression, grammar) {
                     Ok((rest, output)) => return Ok((rest, output)),
@@ -47,10 +46,9 @@ fn check_expr<'a>(
             let (inp, output_second) = check_expr(input, second, grammar)?;
             input = inp;
             output.push_str(&output_second);
-            let mut iter = rest.iter();
-            while let Some(Spanned {
+            for Spanned {
                 node: expression, ..
-            }) = iter.next()
+            } in rest.iter()
             {
                 let (inp, output_expr) = check_expr(input, expression, grammar)?;
                 input = inp;
@@ -60,8 +58,8 @@ fn check_expr<'a>(
         }
         Expression::Optional(box Spanned { node: inner, .. }) => {
             match check_expr(input, inner, grammar) {
-                Ok((rest, output)) => return Ok((rest, output)),
-                Err(()) => return Ok((input, String::new())),
+                Ok((rest, output)) => Ok((rest, output)),
+                Err(()) => Ok((input, String::new())),
             }
         }
         Expression::Repeated(box Spanned { node: inner, .. }) => {
@@ -150,8 +148,8 @@ pub(super) fn check<'a>(
 ) -> bool {
     match check_prod(input, grammar, starting_rule) {
         Ok((input, _)) => {
-            return input.is_empty();
+            input.is_empty()
         },
-        Err(()) => return false,
+        Err(()) => false,
     }
 }

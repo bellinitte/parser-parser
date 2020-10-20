@@ -13,8 +13,8 @@ use error::Error;
 //         .collect::<HashSet<String>>()
 // }
 
-pub(super) fn preprocess<'a>(
+pub(super) fn preprocess(
     input: Spanned<Grammar>,
 ) -> Result<(Spanned<Grammar>, String), Spanned<Error>> {
-    return Ok((input, "program".to_owned()));
+    Ok((input, "program".to_owned()))
 }

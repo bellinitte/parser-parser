@@ -159,11 +159,11 @@ fn syntax(i: Tokens) -> IResult<Tokens, Spanned<Grammar>, Spanned<Error>> {
     })(i)
 }
 
-pub(super) fn parse<'a>(tokens: &'a [Spanned<Token>]) -> Result<Spanned<Grammar>, Spanned<Error>> {
+pub(super) fn parse(tokens: &[Spanned<Token>]) -> Result<Spanned<Grammar>, Spanned<Error>> {
     match syntax(Tokens::new(&tokens)) {
         Ok((_, grammar)) => Ok(grammar),
-        Err(nom::Err::Failure(inner)) => Err(inner.into()),
-        Err(nom::Err::Error(inner)) => Err(inner.into()),
+        Err(nom::Err::Failure(inner)) => Err(inner),
+        Err(nom::Err::Error(inner)) => Err(inner),
         _ => unreachable!(),
     }
 }

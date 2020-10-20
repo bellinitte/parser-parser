@@ -12,6 +12,12 @@ impl Location {
     }
 }
 
+impl Default for Location {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub struct Span {
     pub from: Location,
@@ -38,6 +44,12 @@ impl Span {
             from: start.to,
             to: end.from,
         }
+    }
+}
+
+impl Default for Span {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -87,7 +99,7 @@ macro_rules! impl_spanning {
             fn spanning(self, span: Span) -> Spanned<$impl_type> {
                 Spanned {
                     node: self,
-                    span: span,
+                    span,
                 }
             }
         }
