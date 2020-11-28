@@ -14,16 +14,37 @@ use span::Spanned;
 
 pub struct Parser {
     ast: Spanned<Grammar>,
-    starting_rule: String,
 }
 
 pub fn parse(input: &str) -> Result<Parser, Error> {
     let tokens = lexer::lex(input)?;
     let ast = parser::parse(&tokens)?;
-    let (ast, starting_rule) = preprocessor::preprocess(ast)?;
-    Ok(Parser { ast, starting_rule })
+    let ast = preprocessor::preprocess(ast)?;
+    Ok(Parser { ast })
 }
 
-pub fn check(input: &str, parser: &Parser) -> bool {
-    checker::check(input, &parser.ast, &parser.starting_rule)
+// pub fn get_production_rules(parser: &Parser) -> Vec<String> {
+//     match &parser.ast {
+//         Spanned { node: grammar, .. } => {
+//             return Vec::new();
+//         }
+//     }
+// }
+
+pub fn get_production_rules(
+    Parser {
+        ast: Spanned {
+            node: Grammar { productions },
+            ..
+        },
+    }: &Parser,
+) -> Vec<String> {
+    productions
+        .iter()
+        .map(|spanned_production| spanned_production.node.lhs.node.clone())
+        .collect()
+}
+
+pub fn check(input: &str, parser: &Parser, initial_rule: &str) -> bool {
+    checker::check(input, &parser.ast, initial_rule)
 }

@@ -1,5 +1,6 @@
 use crate::core::error::Error;
 use ebnf_parser_parser as ebnf;
+use js_sys::Array;
 use wasm_bindgen::prelude::*;
 
 mod core;
@@ -25,8 +26,13 @@ impl EbnfParserParser {
         }
     }
 
-    pub fn check(&self, input: &str) -> bool {
-        ebnf::check(input, &self.parser)
+    #[wasm_bindgen(getter = productionRules)]
+    pub fn get_production_rules(&self) -> Array {
+        ebnf::get_production_rules(&self.parser).iter().map(JsValue::from).collect()
+    }
+
+    pub fn check(&self, input: &str, initial_rule: &str) -> bool {
+        ebnf::check(input, &self.parser, initial_rule)
     }
 }
 
