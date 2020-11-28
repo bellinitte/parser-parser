@@ -74,15 +74,12 @@ pub(super) fn lex(string: &str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
                     span: os,
                 }) => match symbols.get(i + 1) {
                     Some(Spanned { node: "*", .. }) => {
-                        match symbols.get(i + 2) {
-                            Some(Spanned {
-                                node: ")",
-                                span: oe,
-                            }) => {
-                                return Err(Error::InvalidSymbol("(*)".to_owned())
-                                    .spanning(Span::combine(os, oe)))
-                            }
-                            _ => {}
+                        if let Some(Spanned {
+                            node: ")",
+                            span: oe,
+                        }) = symbols.get(i + 2) {
+                            return Err(Error::InvalidSymbol("(*)".to_owned())
+                                .spanning(Span::combine(os, oe)))
                         }
                         i += 2;
                         let mut nest_level = 1;
@@ -94,15 +91,12 @@ pub(super) fn lex(string: &str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
                                     span: os,
                                 }) => match symbols.get(i + 1) {
                                     Some(Spanned { node: "*", .. }) => {
-                                        match symbols.get(i + 2) {
-                                            Some(Spanned {
-                                                node: ")",
-                                                span: oe,
-                                            }) => {
-                                                return Err(Error::InvalidSymbol("(*)".to_owned())
-                                                    .spanning(Span::combine(os, oe)))
-                                            }
-                                            _ => {}
+                                        if let Some(Spanned {
+                                            node: ")",
+                                            span: oe,
+                                        }) = symbols.get(i + 2) {
+                                            return Err(Error::InvalidSymbol("(*)".to_owned())
+                                                .spanning(Span::combine(os, oe)))
                                         }
                                         i += 2;
                                         nest_level += 1;

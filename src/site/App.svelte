@@ -3,12 +3,10 @@
 </script>
 
 <style>
-    h1 {
-        color: purple;
+    :global(body) {
+        background-color: rgb(40, 40, 40);
     }
 </style>
-
-<h1>Parser-parser</h1>
 
 {#await import('core')}
     <p>Loading module...</p>

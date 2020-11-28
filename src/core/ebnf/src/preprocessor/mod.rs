@@ -16,5 +16,5 @@ use error::Error;
 pub(super) fn preprocess(
     input: Spanned<Grammar>,
 ) -> Result<(Spanned<Grammar>, String), Spanned<Error>> {
-    Ok((input, "program".to_owned()))
+    Ok((input, "expression".to_owned()))
 }

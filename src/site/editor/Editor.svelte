@@ -5,15 +5,18 @@
     let parseEditor;
     let checkEditor;
     let parser;
-    let output;;
+    let output = "";
     let error;
 
-    function handle_parse_change(event) {
+    async function handle_parse_change(event) {
+        parser = undefined;
+        output = "";
         try {
             parser = new core.EbnfParserParser(event.detail.value);
             error = null;
+            output = parser.check(checkEditor.get()) ? "success" : "failure";
         } catch (e) {
-            output = e.kind;
+            console.error(e);
             error = {
                 message: e.kind,
                 from: {
@@ -29,7 +32,9 @@
     }
 
     function handle_check_change(event) {
-        output = parser.check(event.detail.value);
+        if (parser) {
+            output = parser.check(event.detail.value) ? "success" : "failure";
+        }
     }
 
     function lint() {
@@ -44,41 +49,47 @@
 <style>
     .container {
         position: relative;
+        width: 100%;
+        height: 100%;
+        display: inline-block;
+    }
+
+    .editor-left {
         width: 50%;
-        height: 50%;
-    }
-
-    .container :global(section) {
-        position: relative;
-        padding: 42px 0 0 0;
         height: 100%;
-        box-sizing: border-box;
+        float: left;
+    }
+    
+    .editor-right {
+        width: 50%;
+        height: 15%;
+        float: left;
     }
 
-    .container :global(section) > :global(*):first-child {
-        position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 42px;
-        box-sizing: border-box;
-    }
-
-    .container :global(section) > :global(*):last-child {
-        width: 100%;
-        height: 100%;
+    .output {
+        float: left;
+        font-family: "JetBrains Mono", Consolas, monospace;
+        color: #928374;
+        padding-left: 24px;
     }
 </style>
 
 <div class="container">
-    <CodeMirror
-        bind:this="{parseEditor}"
-        lint="{lint}"
-        on:change="{handle_parse_change}"
-    />
-    <CodeMirror
-        bind:this="{checkEditor}"
-        on:change="{handle_check_change}"
-    />
-    <p>{output}</p>
+    <div class="editor-left">
+        <CodeMirror
+            bind:this="{parseEditor}"
+            lint="{lint}"
+            on:change="{handle_parse_change}"
+        />
+    </div>
+    <div class="editor-right">
+        <CodeMirror
+            bind:this="{checkEditor}"
+            on:change="{handle_check_change}"
+            mode="text"
+        />
+    </div>
+    {#if output != ""}
+        <p class="output">{"> " + output}</p>
+    {/if}
 </div>

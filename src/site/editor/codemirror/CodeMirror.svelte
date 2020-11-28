@@ -8,6 +8,7 @@
     export let lineNumbers = true;
     export let tab = true;
     export let lint = null;
+    export let mode = "ebnf";
 
     let w;
     let h;
@@ -24,6 +25,10 @@
             editor.setValue(code);
         }
         updatingExternally = false;
+    }
+
+    export function get() {
+        return editor.getValue();
     }
 
     export function update(new_code) {
@@ -70,7 +75,7 @@
         (async () => {
             let mod = await import("./codemirror.js");
             codeMirror = mod.default;
-            await createEditor("ebnf");
+            await createEditor(mode);
             if (editor) editor.setValue(code || "");
         })();
 
@@ -116,6 +121,7 @@
                       delay: Number.EPSILON,
                   }
                 : false,
+            theme: 'gruvbox-dark'
         };
 
         if (!tab) {

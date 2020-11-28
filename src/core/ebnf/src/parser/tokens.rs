@@ -4,7 +4,7 @@ use nom::{
     Slice, UnspecializedInput,
 };
 use std::{
-    iter::{Enumerate, Map},
+    iter::{Enumerate, Cloned},
     ops::{Range, RangeFrom, RangeFull, RangeTo},
     slice::Iter,
 };
@@ -49,7 +49,7 @@ impl<'a> InputLength for Tokens<'a> {
 impl<'a> InputIter for Tokens<'a> {
     type Item = Spanned<Token>;
     type Iter = Enumerate<Self::IterElem>;
-    type IterElem = Map<Iter<'a, Self::Item>, fn(&Spanned<Token>) -> Spanned<Token>>;
+    type IterElem = Cloned<Iter<'a, Self::Item>>;
 
     #[inline]
     fn iter_indices(&self) -> Self::Iter {
@@ -58,7 +58,7 @@ impl<'a> InputIter for Tokens<'a> {
 
     #[inline]
     fn iter_elements(&self) -> Self::IterElem {
-        self.inner.iter().map(|t: &Spanned<Token>| t.clone())
+        self.inner.iter().cloned()
     }
 
     #[inline]
