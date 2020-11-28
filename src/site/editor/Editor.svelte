@@ -5,18 +5,24 @@
     let parseEditor;
     let checkEditor;
     let parser;
+    let productionRules = [];
+    let initialProductionRule;
     let output = "";
     let error;
 
-    async function handle_parse_change(event) {
+    async function handleParseChange(event) {
         parser = undefined;
         output = "";
         try {
             parser = new core.EbnfParserParser(event.detail.value);
+            productionRules = parser.productionRules;
+            if (initialProductionRule === null || !productionRules.includes(initialProductionRule)) {
+                initialProductionRule = productionRules[0];
+            }
             error = null;
-            output = parser.check(checkEditor.get(), parser.productionRules[0]) ? "success" : "failure";
+            check(checkEditor.get());
         } catch (e) {
-            // console.error(e);
+            console.error(e);
             error = {
                 message: e.kind,
                 from: {
@@ -31,9 +37,17 @@
         }
     }
 
-    function handle_check_change(event) {
+    function handleCheckChange(event) {
+        check(event.detail.value);
+    }
+
+    function handleInitialProductionRuleChange(event) {
+        check(checkEditor.get());
+    }
+
+    function check(input) {
         if (parser) {
-            output = parser.check(event.detail.value, parser.productionRules[0]) ? "success" : "failure";
+            output = parser.check(input, initialProductionRule) ? "success" : "failure";
         }
     }
 
@@ -79,13 +93,25 @@
         <CodeMirror
             bind:this="{parseEditor}"
             lint="{lint}"
-            on:change="{handle_parse_change}"
+            on:change="{handleParseChange}"
         />
     </div>
+    <!-- svelte-ignore a11y-no-onchange -->
+    <select
+        bind:value={initialProductionRule} 
+        on:change={handleInitialProductionRuleChange}
+        disabled={!parser}
+    >
+		{#each productionRules as productionRule}
+			<option value={productionRule}>
+				{productionRule}
+			</option>
+		{/each}
+	</select>
     <div class="editor-right">
         <CodeMirror
             bind:this="{checkEditor}"
-            on:change="{handle_check_change}"
+            on:change="{handleCheckChange}"
             mode="text"
         />
     </div>
