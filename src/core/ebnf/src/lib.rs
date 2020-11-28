@@ -23,6 +23,28 @@ pub fn parse(input: &str) -> Result<Parser, Error> {
     Ok(Parser { ast })
 }
 
-pub fn check(input: &str, parser: &Parser, starting_rule: &str) -> bool {
-    checker::check(input, &parser.ast, starting_rule)
+// pub fn get_production_rules(parser: &Parser) -> Vec<String> {
+//     match &parser.ast {
+//         Spanned { node: grammar, .. } => {
+//             return Vec::new();
+//         }
+//     }
+// }
+
+pub fn get_production_rules(
+    Parser {
+        ast: Spanned {
+            node: Grammar { productions },
+            ..
+        },
+    }: &Parser,
+) -> Vec<String> {
+    productions
+        .iter()
+        .map(|spanned_production| spanned_production.node.lhs.node.clone())
+        .collect()
+}
+
+pub fn check(input: &str, parser: &Parser, initial_rule: &str) -> bool {
+    checker::check(input, &parser.ast, initial_rule)
 }

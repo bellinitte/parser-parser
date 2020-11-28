@@ -127,14 +127,14 @@ fn check_expr<'a>(
 pub(super) fn check_prod<'a>(
     input: &'a str,
     grammar: &'a Spanned<Grammar>,
-    starting_rule: &'a str,
+    initial_rule: &'a str,
 ) -> Result<(&'a str, String), ()> {
     let productions = &grammar.node.productions;
     for production in productions.iter() {
         let production = &production.node;
         let lhs = &production.lhs.node;
         let rhs = &production.rhs.node;
-        if starting_rule == lhs {
+        if initial_rule == lhs {
             return check_expr(input, rhs, grammar);
         }
     }
@@ -144,9 +144,9 @@ pub(super) fn check_prod<'a>(
 pub(super) fn check<'a>(
     input: &'a str,
     grammar: &'a Spanned<Grammar>,
-    starting_rule: &'a str,
+    initial_rule: &'a str,
 ) -> bool {
-    match check_prod(input, grammar, starting_rule) {
+    match check_prod(input, grammar, initial_rule) {
         Ok((input, _)) => input.is_empty(),
         Err(()) => false,
     }
