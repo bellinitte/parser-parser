@@ -25,8 +25,8 @@ impl EbnfParserParser {
         }
     }
 
-    pub fn check(&self, input: &str) -> bool {
-        ebnf::check(input, &self.parser)
+    pub fn check(&self, input: &str, starting_rule: &str) -> bool {
+        ebnf::check(input, &self.parser, starting_rule)
     }
 }
 

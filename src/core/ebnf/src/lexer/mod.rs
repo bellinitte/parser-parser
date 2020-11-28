@@ -8,7 +8,7 @@ pub mod error;
 mod tests;
 pub mod token;
 
-fn is_whitespace(string: & str) -> bool {
+fn is_whitespace(string: &str) -> bool {
     match string {
         "\n" | "\r" | "\r\n" => return true,
         _ => {}
@@ -77,9 +77,10 @@ pub(super) fn lex(string: &str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
                         if let Some(Spanned {
                             node: ")",
                             span: oe,
-                        }) = symbols.get(i + 2) {
+                        }) = symbols.get(i + 2)
+                        {
                             return Err(Error::InvalidSymbol("(*)".to_owned())
-                                .spanning(Span::combine(os, oe)))
+                                .spanning(Span::combine(os, oe)));
                         }
                         i += 2;
                         let mut nest_level = 1;
@@ -94,9 +95,10 @@ pub(super) fn lex(string: &str) -> Result<Vec<Spanned<Token>>, Spanned<Error>> {
                                         if let Some(Spanned {
                                             node: ")",
                                             span: oe,
-                                        }) = symbols.get(i + 2) {
+                                        }) = symbols.get(i + 2)
+                                        {
                                             return Err(Error::InvalidSymbol("(*)".to_owned())
-                                                .spanning(Span::combine(os, oe)))
+                                                .spanning(Span::combine(os, oe)));
                                         }
                                         i += 2;
                                         nest_level += 1;

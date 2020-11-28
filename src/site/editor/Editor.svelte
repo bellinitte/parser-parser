@@ -14,7 +14,7 @@
         try {
             parser = new core.EbnfParserParser(event.detail.value);
             error = null;
-            output = parser.check(checkEditor.get()) ? "success" : "failure";
+            output = parser.check(checkEditor.get(), "program") ? "success" : "failure";
         } catch (e) {
             console.error(e);
             error = {
@@ -33,7 +33,7 @@
 
     function handle_check_change(event) {
         if (parser) {
-            output = parser.check(event.detail.value) ? "success" : "failure";
+            output = parser.check(event.detail.value, "program") ? "success" : "failure";
         }
     }
 

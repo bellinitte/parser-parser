@@ -4,7 +4,7 @@ use nom::{
     Slice, UnspecializedInput,
 };
 use std::{
-    iter::{Enumerate, Cloned},
+    iter::{Cloned, Enumerate},
     ops::{Range, RangeFrom, RangeFull, RangeTo},
     slice::Iter,
 };

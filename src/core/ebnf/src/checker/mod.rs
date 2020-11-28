@@ -147,9 +147,7 @@ pub(super) fn check<'a>(
     starting_rule: &'a str,
 ) -> bool {
     match check_prod(input, grammar, starting_rule) {
-        Ok((input, _)) => {
-            input.is_empty()
-        },
+        Ok((input, _)) => input.is_empty(),
         Err(()) => false,
     }
 }

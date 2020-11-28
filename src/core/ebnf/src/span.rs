@@ -97,10 +97,7 @@ macro_rules! impl_spanning {
     ($impl_type:ty) => {
         impl<'a> Spanning for $impl_type {
             fn spanning(self, span: Span) -> Spanned<$impl_type> {
-                Spanned {
-                    node: self,
-                    span,
-                }
+                Spanned { node: self, span }
             }
         }
     };
