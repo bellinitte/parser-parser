@@ -78,7 +78,7 @@ fn is_failing(
             false
         }
         Expression::Terminal(_) => false,
-        Expression::Special(_) => true,
+        Expression::Special(_) => false,
         Expression::Empty => true,
     }
 }
