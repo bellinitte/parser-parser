@@ -28,7 +28,10 @@ impl EbnfParserParser {
 
     #[wasm_bindgen(getter = productionRules)]
     pub fn get_production_rules(&self) -> Array {
-        ebnf::get_production_rules(&self.parser).iter().map(JsValue::from).collect()
+        ebnf::get_production_rules(&self.parser)
+            .iter()
+            .map(JsValue::from)
+            .collect()
     }
 
     pub fn check(&self, input: &str, initial_rule: &str) -> bool {

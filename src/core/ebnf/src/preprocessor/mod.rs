@@ -8,7 +8,7 @@ use std::collections::HashMap;
 fn is_failing(
     expression: &Spanned<Expression>,
     rules: &HashMap<String, &Spanned<Expression>>,
-    trace: &mut Vec<String>
+    trace: &mut Vec<String>,
 ) -> bool {
     match &expression.node {
         Expression::Alternative {
@@ -76,7 +76,7 @@ fn is_failing(
             }
 
             false
-        },
+        }
         Expression::Terminal(_) => false,
         Expression::Special(_) => true,
         Expression::Empty => true,
@@ -86,7 +86,7 @@ fn is_failing(
 fn check_expr(
     expression: &Spanned<Expression>,
     rules: &HashMap<String, &Spanned<Expression>>,
-    trace: &mut Vec<String>
+    trace: &mut Vec<String>,
 ) -> Result<(), Spanned<Error>> {
     match &expression.node {
         Expression::Alternative {
@@ -96,8 +96,7 @@ fn check_expr(
         } => {
             check_expr(first, rules, trace)?;
             check_expr(second, rules, trace)?;
-            for expression in rest.iter()
-            {
+            for expression in rest.iter() {
                 check_expr(expression, rules, trace)?;
             }
             return Ok(());
@@ -107,14 +106,13 @@ fn check_expr(
             second: box second,
             rest,
         } => {
-            if is_failing(first, rules, &mut vec![trace.last().unwrap().clone()]) {
+            if !is_failing(first, rules, &mut vec![trace.last().unwrap().clone()]) {
                 return check_expr(first, rules, trace);
-            } else if is_failing(second, rules, &mut vec![trace.last().unwrap().clone()]) {
+            } else if !is_failing(second, rules, &mut vec![trace.last().unwrap().clone()]) {
                 return check_expr(second, rules, trace);
             } else {
-                for expression in rest[..rest.len() - 1].iter()
-                {
-                    if is_failing(expression, rules, &mut vec![trace.last().unwrap().clone()]) {
+                for expression in rest[..rest.len() - 1].iter() {
+                    if !is_failing(expression, rules, &mut vec![trace.last().unwrap().clone()]) {
                         return check_expr(expression, rules, trace);
                     }
                 }
@@ -161,7 +159,7 @@ fn check_expr(
             }
 
             return Ok(());
-        },
+        }
         Expression::Terminal(_) => Ok(()),
         Expression::Special(_) => Ok(()),
         Expression::Empty => Ok(()),
@@ -169,14 +167,19 @@ fn check_expr(
 }
 
 fn get_rule_hash_map(rules: &Vec<Spanned<Production>>) -> HashMap<String, &Spanned<Expression>> {
-    rules.iter()
-        .map(|Spanned { node: rule, .. }| -> (String, &Spanned<Expression>) {
-            (rule.lhs.node.clone(), &rule.rhs)
-        })
+    rules
+        .iter()
+        .map(
+            |Spanned { node: rule, .. }| -> (String, &Spanned<Expression>) {
+                (rule.lhs.node.clone(), &rule.rhs)
+            },
+        )
         .collect()
 }
 
-fn validate_left_recursion(Spanned { node: grammar, .. }: &Spanned<Grammar>) -> Result<(), Spanned<Error>> {
+fn validate_left_recursion(
+    Spanned { node: grammar, .. }: &Spanned<Grammar>,
+) -> Result<(), Spanned<Error>> {
     let rules = get_rule_hash_map(&grammar.productions);
 
     for (name, expression) in &rules {
@@ -189,7 +192,7 @@ fn validate_left_recursion(Spanned { node: grammar, .. }: &Spanned<Grammar>) -> 
 
 fn check_nonterminals(
     expression: &Spanned<Expression>,
-    rules: &Vec<String>
+    rules: &Vec<String>,
 ) -> Result<(), Spanned<Error>> {
     match &expression.node {
         Expression::Alternative {
@@ -242,7 +245,7 @@ fn check_nonterminals(
             } else {
                 return Ok(());
             }
-        },
+        }
         Expression::Terminal(_) => Ok(()),
         Expression::Special(_) => Ok(()),
         Expression::Empty => Ok(()),
@@ -250,24 +253,33 @@ fn check_nonterminals(
 }
 
 fn get_rule_identifiers(rules: &Vec<Spanned<Production>>) -> Vec<String> {
-    rules.iter()
-        .map(|Spanned { node: rule, .. }| -> String {
-            rule.lhs.node.clone()
-        })
+    rules
+        .iter()
+        .map(|Spanned { node: rule, .. }| -> String { rule.lhs.node.clone() })
         .collect()
 }
 
-fn validate_nonterminals(Spanned { node: grammar, .. }: &Spanned<Grammar>) -> Result<(), Spanned<Error>> {
+fn validate_nonterminals(
+    Spanned { node: grammar, .. }: &Spanned<Grammar>,
+) -> Result<(), Spanned<Error>> {
     let rules = get_rule_identifiers(&grammar.productions);
 
-    for Spanned { node: Production { rhs: expression, .. }, .. } in grammar.productions.iter() {
+    for Spanned {
+        node: Production {
+            rhs: expression, ..
+        },
+        ..
+    } in grammar.productions.iter()
+    {
         check_nonterminals(&expression, &rules)?;
     }
 
     return Ok(());
 }
 
-pub(super) fn preprocess(spanned_grammar: Spanned<Grammar>) -> Result<Spanned<Grammar>, Spanned<Error>> {
+pub(super) fn preprocess(
+    spanned_grammar: Spanned<Grammar>,
+) -> Result<Spanned<Grammar>, Spanned<Error>> {
     validate_nonterminals(&spanned_grammar)?;
     validate_left_recursion(&spanned_grammar)?;
     Ok(spanned_grammar)

@@ -20,7 +20,7 @@ impl fmt::Display for Error {
                     .join(" -> ");
                 let rule = chain.first().unwrap();
                 return write!(f, "rule {} is left recursive ({})", rule, chain_string);
-            },
+            }
         }
     }
 }
