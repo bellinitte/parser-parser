@@ -1,7 +1,8 @@
 use crate::core::error::Error;
 use ebnf_parser_parser as ebnf;
-use js_sys::Array;
+use js_sys::{Array, Object};
 use wasm_bindgen::prelude::*;
+use crate::core::tree;
 
 mod core;
 
@@ -34,8 +35,8 @@ impl EbnfParserParser {
             .collect()
     }
 
-    pub fn check(&self, input: &str, initial_rule: &str) -> bool {
-        ebnf::check(input, &self.parser, initial_rule)
+    pub fn check(&self, input: &str, initial_rule: &str) -> Option<Object> {
+        ebnf::check(input, &self.parser, initial_rule).map(tree)
     }
 }
 

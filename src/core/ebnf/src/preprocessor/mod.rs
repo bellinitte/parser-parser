@@ -106,18 +106,6 @@ fn check_expr(
             second: box second,
             rest,
         } => {
-            // if !is_failing(first, rules, &mut vec![trace.last().unwrap().clone()]) {
-            //     return check_expr(first, rules, trace);
-            // } else if !is_failing(second, rules, &mut vec![trace.last().unwrap().clone()]) {
-            //     return check_expr(second, rules, trace);
-            // } else {
-            //     for expression in rest[..rest.len() - 1].iter() {
-            //         if !is_failing(expression, rules, &mut vec![trace.last().unwrap().clone()]) {
-            //             return check_expr(expression, rules, trace);
-            //         }
-            //     }
-            //     return check_expr(&rest.last().unwrap(), rules, trace);
-            // }
             if !is_failing(first, rules, &mut vec![trace.last().unwrap().clone()]) {
                 return check_expr(first, rules, trace);
             }
