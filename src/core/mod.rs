@@ -10,7 +10,7 @@ pub fn tree(node: Node) -> Object {
         Node::Terminal(string) => {
             let obj = Object::new();
             unsafe {
-                Reflect::set(&obj, &"name".into(), &string.into())
+                Reflect::set(&obj, &"name".into(), &format!("\"{}\"", string).into())
                     .unwrap();
             }
             return obj;

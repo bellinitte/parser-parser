@@ -49,6 +49,7 @@
     function check(input) {
         if (parser) {
             output = parser.check(input, initialProductionRule);
+            console.log(output);
         }
     }
 
@@ -115,11 +116,12 @@
             on:change="{handleCheckChange}"
             mode="text"
         />
+        {#if output != null}
+            <Tree tree={[output]} let:node>
+                <div class="output">{node.name}</div>
+            </Tree>
+        {:else}
+            <p class="output">failure</p>
+        {/if}
     </div>
-    {#if output != null}
-        <Tree tree={[output]} let:node>
-            <div class="output">{node.name}</div>
-        </Tree>
-        <!-- <p class="output">{"> " + output}</p> -->
-    {/if}
 </div>
