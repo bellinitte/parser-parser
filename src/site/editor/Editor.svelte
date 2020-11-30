@@ -98,19 +98,19 @@
             on:change="{handleParseChange}"
         />
     </div>
-    <!-- svelte-ignore a11y-no-onchange -->
-    <select
-        bind:value={initialProductionRule} 
-        on:change={handleInitialProductionRuleChange}
-        disabled={!parser}
-    >
-		{#each productionRules as productionRule}
-			<option value={productionRule}>
-				{productionRule}
-			</option>
-		{/each}
-	</select>
     <div class="editor-right">
+        <!-- svelte-ignore a11y-no-onchange -->
+        <select
+            bind:value={initialProductionRule} 
+            on:change={handleInitialProductionRuleChange}
+            disabled={!parser}
+        >
+            {#each productionRules as productionRule}
+                <option value={productionRule}>
+                    {productionRule}
+                </option>
+            {/each}
+        </select>
         <CodeMirror
             bind:this="{checkEditor}"
             on:change="{handleCheckChange}"
