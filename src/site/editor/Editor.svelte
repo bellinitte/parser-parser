@@ -1,5 +1,6 @@
 <script>
     import CodeMirror from "./codemirror/CodeMirror.svelte";
+    import Tree from "svelte-tree";
 
     export let core;
     let parseEditor;
@@ -7,12 +8,12 @@
     let parser;
     let productionRules = [];
     let initialProductionRule;
-    let output = "";
+    let output = null;
     let error;
 
     async function handleParseChange(event) {
         parser = undefined;
-        output = "";
+        output = null;
         try {
             parser = new core.EbnfParserParser(event.detail.value);
             productionRules = parser.productionRules;
@@ -47,7 +48,7 @@
 
     function check(input) {
         if (parser) {
-            output = parser.check(input, initialProductionRule) ? "success" : "failure";
+            output = parser.check(input, initialProductionRule);
         }
     }
 
@@ -115,7 +116,10 @@
             mode="text"
         />
     </div>
-    {#if output != ""}
-        <p class="output">{"> " + output}</p>
+    {#if output != null}
+        <Tree tree={[output]} let:node>
+            <div class="output">{node.name}</div>
+        </Tree>
+        <!-- <p class="output">{"> " + output}</p> -->
     {/if}
 </div>

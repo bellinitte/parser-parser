@@ -2,7 +2,7 @@
 
 use error::Error;
 
-mod checker;
+pub mod checker;
 pub mod error;
 mod lexer;
 mod parser;
@@ -11,6 +11,7 @@ mod span;
 
 use parser::Grammar;
 use span::Spanned;
+use checker::node::Node;
 
 pub struct Parser {
     ast: Spanned<Grammar>,
@@ -45,6 +46,6 @@ pub fn get_production_rules(
         .collect()
 }
 
-pub fn check(input: &str, parser: &Parser, initial_rule: &str) -> bool {
+pub fn check(input: &str, parser: &Parser, initial_rule: &str) -> Option<Node> {
     checker::check(input, &parser.ast, initial_rule)
 }
