@@ -1,0 +1,10 @@
+[package]
+name = "ebnf"
+version = "0.1.0"
+authors = ["Karol Belina <karolbelina@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "6.0.0-alpha1"
+unicode-segmentation = "1.6.0"
+base = { path = "../base" }

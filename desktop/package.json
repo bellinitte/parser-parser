@@ -1,0 +1,40 @@
+{
+  "name": "desktop",
+  "version": "1.0.0",
+  "description": "A minimal Electron application",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "install-wsl": "npm install && npm uninstall electron && export npm_config_platform=win32 && npm install electron --save-dev && unset npm_config_platform"
+  },
+  "keywords": [
+    "Electron",
+    "quick",
+    "start",
+    "tutorial",
+    "demo"
+  ],
+  "author": "GitHub",
+  "license": "CC0-1.0",
+  "dependencies": {
+    "web": "file:../web"
+  },
+  "devDependencies": {
+    "electron-packager": "^15.1.0",
+    "@rollup/plugin-alias": "^3.1.1",
+    "@rollup/plugin-commonjs": "^12.0.0",
+    "@rollup/plugin-node-resolve": "^8.0.0",
+    "@rollup/plugin-typescript": "^5.0.2",
+    "@wasm-tool/rollup-plugin-rust": "^1.0.0",
+    "rollup": "^2.3.4",
+    "rollup-plugin-copy": "^3.3.0",
+    "rollup-plugin-css-only": "^2.1.0",
+    "rollup-plugin-livereload": "^1.0.0",
+    "rollup-plugin-svelte": "^5.0.3",
+    "rollup-plugin-terser": "^7.0.2",
+    "svelte": "^3.0.0",
+    "svelte-check": "^0.1.0",
+    "svelte-loader": "2.13.3",
+    "svelte-preprocess": "^4.0.8"
+  }
+}

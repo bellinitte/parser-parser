@@ -13,6 +13,7 @@ RUN npm install -g serve
 WORKDIR /usr/src/parser-parser
 COPY . .
 
+RUN cd web
 RUN npm ci
 RUN npm run build
 
