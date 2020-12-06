@@ -1,4 +1,6 @@
 pub mod error;
+#[cfg(test)]
+mod tests;
 
 use super::parser::{Expression, Grammar, Production};
 use super::span::{Span, Spanned, Spanning};

@@ -1,4 +1,5 @@
 use super::{lex, scan, Error, Span, Spanning, Token};
+use quickcheck_macros::quickcheck;
 
 #[test]
 fn test_scan_control_characters() {
@@ -409,4 +410,9 @@ fn test_multiple_unicode_code_points() {
             Token::Terminator.spanning(Span::from(((10, 0), (11, 0)))),
         ])
     );
+}
+
+#[quickcheck]
+fn test_arbitrary_input(input: String) {
+    let _ = lex(&input);
 }

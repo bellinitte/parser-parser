@@ -22,12 +22,10 @@
   "scripts": {
     "build": "rimraf dist && rollup -c",
     "start": "rimraf dist && rollup -c -w",
-    "test": "cargo test --workspace && wasm-pack test --node && jest",
-    "fmt": "cargo fmt && prettier --write --plugin-search-dir=. .",
-    "deploy": "gh-pages -d dist",
-    "install-wsl": "npm install && npm uninstall electron && export npm_config_platform=win32 && npm install electron --save-dev && unset npm_config_platform"
+    "test": "jest",
+    "fmt": "prettier --write --plugin-search-dir=. .",
+    "deploy": "gh-pages -d dist"
   },
-  "main": "electron/main.js",
   "devDependencies": {
     "@babel/core": "^7.11.0",
     "@babel/preset-env": "^7.11.0",

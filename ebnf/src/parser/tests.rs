@@ -1,5 +1,7 @@
-use super::{Error, Expression, Grammar, Production, Span, Spanning, Token, Tokens};
+use super::super::span::Location;
+use super::{Error, Expression, Grammar, Production, Span, Spanned, Spanning, Token, Tokens};
 use nom::{Err, Slice};
+use quickcheck_macros::quickcheck;
 
 #[macro_export]
 macro_rules! ok_case {
@@ -519,4 +521,64 @@ fn test_syntaxes() {
         }
         .spanning(Span::from(((0, 0), (52, 0))))
     );
+}
+
+use quickcheck::{Arbitrary, Gen};
+use rand::seq::SliceRandom;
+
+impl Arbitrary for Token {
+    fn arbitrary<G: Gen>(g: &mut G) -> Token {
+        let vals = &[
+            Token::Nonterminal(String::arbitrary(g)),
+            Token::Terminal(String::arbitrary(g)),
+            Token::Special(String::arbitrary(g)),
+            Token::Integer(usize::arbitrary(g)),
+            Token::Concatenation,
+            Token::Definition,
+            Token::DefinitionSeparator,
+            Token::EndGroup,
+            Token::EndOption,
+            Token::EndRepeat,
+            Token::Exception,
+            Token::Repetition,
+            Token::StartGroup,
+            Token::StartOption,
+            Token::StartRepeat,
+            Token::Terminator,
+        ];
+        vals.choose(g).unwrap().clone()
+    }
+}
+
+impl Arbitrary for Location {
+    fn arbitrary<G: Gen>(g: &mut G) -> Location {
+        Location {
+            column: usize::arbitrary(g),
+            line: usize::arbitrary(g),
+        }
+    }
+}
+
+impl Arbitrary for Span {
+    fn arbitrary<G: Gen>(g: &mut G) -> Span {
+        Span {
+            from: Location::arbitrary(g),
+            to: Location::arbitrary(g),
+        }
+    }
+}
+
+impl<T: Arbitrary> Arbitrary for Spanned<T> {
+    fn arbitrary<G: Gen>(g: &mut G) -> Spanned<T> {
+        Spanned {
+            node: T::arbitrary(g),
+            span: Span::arbitrary(g),
+        }
+    }
+}
+
+#[quickcheck]
+fn test_arbitrary_input(tokens: Vec<Spanned<Token>>) {
+    use super::parse;
+    let _ = parse(tokens.as_slice());
 }

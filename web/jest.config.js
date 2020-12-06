@@ -1,7 +1,12 @@
 module.exports = {
     transform: {
-        "^.+\\.svelte$": "svelte-jester",
+        "^.+\\.svelte$": [
+            "svelte-jester",
+            {
+                "preprocess": true
+            }
+        ],
         "^.+\\.js$": "babel-jest",
     },
-    moduleFileExtensions: ["js", "svelte"],
+    moduleFileExtensions: ["js", "svelte", "toml"],
 };
