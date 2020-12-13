@@ -97,7 +97,7 @@ impl Into<JsValue> for Error {
 }
 
 #[allow(unused_unsafe)]
-pub fn tree(node: base::Node) -> Object {
+fn tree(node: base::Node) -> Object {
     match node {
         base::Node::Terminal(string) => {
             let obj = Object::new();

@@ -6,6 +6,7 @@ use std::fmt;
 pub enum Error {
     UndefinedRule(String),
     LeftRecursion(Vec<String>),
+    MultipleDefinitions(String),
 }
 
 impl fmt::Display for Error {
@@ -20,7 +21,8 @@ impl fmt::Display for Error {
                     .join(" -> ");
                 let rule = chain.first().unwrap();
                 return write!(f, "rule {} is left recursive ({})", rule, chain_string);
-            }
+            },
+            Error::MultipleDefinitions(rule) => write!(f, "rule {} is multiply defined", rule),
         }
     }
 }

@@ -29,7 +29,7 @@ fn is_failing(
                     return false;
                 }
             }
-            return true;
+            true
         }
         Expression::Sequence {
             first: box first,
@@ -47,7 +47,7 @@ fn is_failing(
                     return true;
                 }
             }
-            return false;
+            false
         }
         Expression::Optional(_) => true,
         Expression::Repeated(_) => true,
@@ -58,13 +58,13 @@ fn is_failing(
             if *count == 0 {
                 return true;
             }
-            return is_failing(primary, rules, trace);
+            is_failing(primary, rules, trace)
         }
         Expression::Exception {
             subject: box subject,
             restriction: box restriction,
         } => {
-            return is_failing(subject, rules, trace) && is_failing(restriction, rules, trace);
+            is_failing(subject, rules, trace) && is_failing(restriction, rules, trace)
         }
         Expression::Nonterminal(identifier) => {
             if !trace.contains(identifier) {
@@ -101,7 +101,7 @@ fn check_expr(
             for expression in rest.iter() {
                 check_expr(expression, rules, trace)?;
             }
-            return Ok(());
+            Ok(())
         }
         Expression::Sequence {
             first: box first,
@@ -111,8 +111,8 @@ fn check_expr(
             if !is_failing(first, rules, &mut vec![trace.last().unwrap().clone()]) {
                 return check_expr(first, rules, trace);
             }
-            if rest.len() == 0 {
-                return check_expr(second, rules, trace);
+            if rest.is_empty() {
+                check_expr(second, rules, trace)
             } else {
                 if !is_failing(second, rules, &mut vec![trace.last().unwrap().clone()]) {
                     return check_expr(second, rules, trace);
@@ -126,10 +126,10 @@ fn check_expr(
             }
         }
         Expression::Optional(box inner) => {
-            return check_expr(inner, rules, trace);
+            check_expr(inner, rules, trace)
         }
         Expression::Repeated(box inner) => {
-            return check_expr(inner, rules, trace);
+            check_expr(inner, rules, trace)
         }
         Expression::Factor {
             count: Spanned { node: count, .. },
@@ -138,7 +138,7 @@ fn check_expr(
             if *count == 0 {
                 return Ok(());
             }
-            return check_expr(primary, rules, trace);
+            check_expr(primary, rules, trace)
         }
         Expression::Exception {
             subject: box subject,
@@ -146,7 +146,7 @@ fn check_expr(
         } => {
             check_expr(subject, rules, trace)?;
             check_expr(restriction, rules, trace)?;
-            return Ok(());
+            Ok(())
         }
         Expression::Nonterminal(identifier) => {
             if &trace[0] == identifier {
@@ -164,7 +164,7 @@ fn check_expr(
                 }
             }
 
-            return Ok(());
+            Ok(())
         }
         Expression::Terminal(_) => Ok(()),
         Expression::Special(_) => Ok(()),
@@ -172,7 +172,7 @@ fn check_expr(
     }
 }
 
-fn get_rule_hash_map(rules: &Vec<Spanned<Production>>) -> HashMap<String, &Spanned<Expression>> {
+fn get_rule_hash_map(rules: &[Spanned<Production>]) -> HashMap<String, &Spanned<Expression>> {
     rules
         .iter()
         .map(
@@ -193,12 +193,12 @@ fn validate_left_recursion(
         check_expr(expression, &rules, &mut vec![name])?;
     }
 
-    return Ok(());
+    Ok(())
 }
 
 fn check_nonterminals(
     expression: &Spanned<Expression>,
-    rules: &Vec<String>,
+    rules: &[String],
 ) -> Result<(), Spanned<Error>> {
     match &expression.node {
         Expression::Alternative {
@@ -211,7 +211,7 @@ fn check_nonterminals(
             for expression in rest.iter() {
                 check_nonterminals(expression, rules)?;
             }
-            return Ok(());
+            Ok(())
         }
         Expression::Sequence {
             first: box first,
@@ -223,19 +223,19 @@ fn check_nonterminals(
             for expression in rest.iter() {
                 check_nonterminals(expression, rules)?;
             }
-            return Ok(());
+            Ok(())
         }
         Expression::Optional(box inner) => {
-            return check_nonterminals(inner, rules);
+            check_nonterminals(inner, rules)
         }
         Expression::Repeated(box inner) => {
-            return check_nonterminals(inner, rules);
+            check_nonterminals(inner, rules)
         }
         Expression::Factor {
             primary: box primary,
             ..
         } => {
-            return check_nonterminals(primary, rules);
+            check_nonterminals(primary, rules)
         }
         Expression::Exception {
             subject: box subject,
@@ -243,13 +243,13 @@ fn check_nonterminals(
         } => {
             check_nonterminals(subject, rules)?;
             check_nonterminals(restriction, rules)?;
-            return Ok(());
+            Ok(())
         }
         Expression::Nonterminal(identifier) => {
             if !rules.contains(identifier) {
-                return Err(Error::UndefinedRule(identifier.clone()).spanning(expression.span));
+                Err(Error::UndefinedRule(identifier.clone()).spanning(expression.span))
             } else {
-                return Ok(());
+                Ok(())
             }
         }
         Expression::Terminal(_) => Ok(()),
@@ -258,7 +258,7 @@ fn check_nonterminals(
     }
 }
 
-fn get_rule_identifiers(rules: &Vec<Spanned<Production>>) -> Vec<String> {
+fn get_rule_identifiers(rules: &[Spanned<Production>]) -> Vec<String> {
     rules
         .iter()
         .map(|Spanned { node: rule, .. }| -> String { rule.lhs.node.clone() })
@@ -280,12 +280,37 @@ fn validate_nonterminals(
         check_nonterminals(&expression, &rules)?;
     }
 
-    return Ok(());
+    Ok(())
+}
+
+fn validate_repetitions(
+    Spanned { node: grammar, .. }: &Spanned<Grammar>,
+) -> Result<(), Spanned<Error>> {
+    let rules = get_rule_identifiers(&grammar.productions);
+
+    for spanned_production in grammar.productions.iter() {
+        if rules.iter().filter(|&n| *n == spanned_production.node.lhs.node).count() != 1 {
+            return Err(Error::MultipleDefinitions(spanned_production.node.lhs.node.to_owned()).spanning(spanned_production.node.lhs.span))
+        }
+    }
+
+    for Spanned {
+        node: Production {
+            rhs: expression, ..
+        },
+        ..
+    } in grammar.productions.iter()
+    {
+        check_nonterminals(&expression, &rules)?;
+    }
+
+    Ok(())
 }
 
 pub(super) fn preprocess(
     spanned_grammar: Spanned<Grammar>,
 ) -> Result<Spanned<Grammar>, Spanned<Error>> {
+    validate_repetitions(&spanned_grammar)?;
     validate_nonterminals(&spanned_grammar)?;
     validate_left_recursion(&spanned_grammar)?;
     Ok(spanned_grammar)

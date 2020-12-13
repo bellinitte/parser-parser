@@ -121,7 +121,8 @@
                       delay: Number.EPSILON,
                   }
                 : false,
-            theme: 'gruvbox-dark'
+            theme: 'gruvbox-dark',
+            scrollbarStyle: 'native'
         };
 
         if (!tab) {

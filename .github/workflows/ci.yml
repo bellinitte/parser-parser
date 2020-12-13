@@ -31,7 +31,7 @@ jobs:
       uses: jetli/wasm-pack-action@v0.3.0
       with:
         version: 'latest'
-    - run: cd web
+    - run: cd app
     - run: npm ci
     - run: npm run build
 
@@ -55,7 +55,7 @@ jobs:
       uses: jetli/wasm-pack-action@v0.3.0
       with:
         version: 'latest'
-    - run: cd web
+    - run: cd app
     - run: npm ci
     - run: npm run test
 
@@ -79,7 +79,7 @@ jobs:
       uses: jetli/wasm-pack-action@v0.3.0
       with:
         version: 'latest'
-    - run: cd web
+    - run: cd app
     - run: npm ci
     - run: npm run build
     - name: Deploy to gh-pages
