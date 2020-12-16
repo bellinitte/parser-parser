@@ -1,0 +1,10 @@
+[package]
+name = "base"
+version = "0.1.0"
+description = "Core library for the Parser-parser"
+authors = ["Karol Belina <karolbelina@gmail.com>"]
+edition = "2018"
+repository = "https://github.com/karolbelina/parser-parser/"
+license = "MIT"
+readme = "README.md"
+keywords = ["EBNF", "parser", "parsing", "context-free grammar", "parser combinators"]

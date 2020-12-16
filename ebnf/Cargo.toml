@@ -1,0 +1,20 @@
+[package]
+name = "ebnf"
+version = "0.1.0"
+authors = ["Karol Belina <karolbelina@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+nom = "6.0.0-alpha1"
+unicode-segmentation = "1.6.0"
+base = { path = "../base" }
+
+[dev-dependencies]
+criterion = "0.3.3"
+quickcheck = "0.9"
+quickcheck_macros = "0.9"
+rand = "0.7.3"
+
+[[bench]]
+name = "bench"
+harness = false
