@@ -23,6 +23,7 @@
     "build": "rimraf dist && rollup -c",
     "start": "rimraf dist && rollup -c -w",
     "fmt": "prettier --write --plugin-search-dir=. .",
+    "test": "wasm-pack test --chrome",
     "deploy": "gh-pages -d dist"
   },
   "devDependencies": {
