@@ -211,5 +211,11 @@
     bind:offsetWidth="{w}"
     bind:offsetHeight="{h}"
 >
+    {#if !codeMirror}
+        <div>
+            loading editor...
+        </div>
+    {/if}
+
     <textarea bind:this="{textAreaRef}" readonly></textarea>
 </div>
