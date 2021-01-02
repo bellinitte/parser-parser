@@ -10,7 +10,7 @@ export default function serve() {
             if (server) return;
             server = require("child_process").spawn(
                 "npx",
-                ["sirv", "dist", "--dev"],
+                ["sirv", "dist", "--dev", "--s"],
                 {
                     stdio: ["ignore", "inherit", "inherit"],
                     shell: true,

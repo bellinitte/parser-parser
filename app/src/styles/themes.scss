@@ -1,0 +1,79 @@
+:global(body[theme="gruvbox dark"]) {
+    --bg-color: #282828;
+    --fg-color: #ebdbb2;
+    --accent-color: #fabd2f;
+    --string-color: #b8bb26;
+    --number-color: #d3869b;
+    --comment-color: #928374;
+    --error-color: #fb4934;
+}
+
+:global(body[theme="gruvbox light"]) {
+    --bg-color: #fbf1c7;
+    --fg-color: #3c3836;
+    --accent-color: #b57614;
+    --string-color: #79740e;
+    --number-color: #8f3f71;
+    --comment-color: #928374;
+    --error-color: #9d0006;
+}
+
+:global(body[theme="monokai"]) {
+    --bg-color: #272822;
+    --fg-color: #f8f8f2;
+    --accent-color: #a6e22e;
+    --string-color: #e6db74;
+    --number-color: #ae81ff;
+    --comment-color: #75715e;
+    --error-color: #f92672;
+}
+
+:global(body[theme="solarized"]) {
+    --bg-color: #002b36;
+    --fg-color: #eee8d5;
+    --accent-color: #b58900;
+    --string-color: #2aa198;
+    --number-color: #6c71c4;
+    --comment-color: #586e75;
+    --error-color: #dc322f;
+}
+
+// :global(body[theme="laser"]) {
+//     --bg-color: #221b44;
+//     --main-color: #009eaf;
+//     --caret-color: #009eaf;
+//     --sub-color: #b82356;
+//     --text-color: #dbe7e8;
+//     --error-color: #a8d400;
+//     --error-extra-color: #668000;
+// }
+
+// :global(body[theme="dark magic girl"]) {
+//     --bg-color: #091f2c;
+//     --main-color: #f5b1cc;
+//     --caret-color: #93e8d3;
+//     --sub-color: #93e8d3;
+//     --text-color: #a288d9;
+//     --error-color: #e45c96;
+//     --error-extra-color: #e45c96;
+// }
+
+// :global(body[theme="horizon"]) {
+//     --bg-color: #1c1e26;
+//     --main-color: #c4a88a;
+//     --caret-color: #bbbbbb;
+//     --sub-color: #db886f;
+//     --text-color: #bbbbbb;
+//     --error-color: #d55170;
+//     --error-extra-color: #ff3d3d;
+// }
+
+// :global(body[theme="ishtar"]) {
+//     --bg-color: #202020;
+//     --main-color: #91170c;
+//     --caret-color: #c58940;
+//     --sub-color: #847869;
+//     --text-color: #fae1c3;
+//     --error-color: #bb1e10;
+//     --error-extra-color: #791717;
+// }

@@ -8,7 +8,7 @@
     export let lineNumbers = true;
     export let tab = true;
     export let lint = null;
-    export let mode = "ebnf";
+    export let mode = null;
 
     let w;
     let h;
@@ -73,7 +73,7 @@
 
     onMount(() => {
         (async () => {
-            let mod = await import("./codemirror.js");
+            let mod = await import("../services/codemirror/codemirror.js");
             codeMirror = mod.default;
             await createEditor(mode);
             if (editor) editor.setValue(code || "");
@@ -104,9 +104,11 @@
             tabSize: 2,
             tabIndex: 4,
             value: "",
-            mode: {
-                name: mode,
-            },
+            mode: mode
+                ? {
+                      name: mode,
+                  }
+                : null,
             readOnly: readonly,
             autoCloseBrackets: true,
             autoCloseTags: true,
@@ -121,8 +123,7 @@
                       delay: Number.EPSILON,
                   }
                 : false,
-            theme: 'gruvbox-dark',
-            scrollbarStyle: 'native'
+            scrollbarStyle: "native",
         };
 
         if (!tab) {
@@ -160,26 +161,24 @@
     }
 </script>
 
-<style>
+<style type="text/scss">
+    @import "../styles/codemirror.scss";
+
     .codemirror-container {
         position: relative;
         width: 100%;
         height: 100%;
-        border: none;
         line-height: 1.5;
         overflow: hidden;
     }
 
     .codemirror-container :global(.CodeMirror) {
-        height: 100%;
-        background: transparent;
         font: 400 16px/1.7;
         font-family: "JetBrains Mono", Consolas, monospace;
-        color: var(--base);
     }
 
-    .codemirror-container.flex :global(.CodeMirror) {
-        height: auto;
+    .codemirror-container :global(.CodeMirror-code) {
+        color: var(--fg-color);
     }
 
     .codemirror-container.flex :global(.CodeMirror-lines) {
@@ -188,7 +187,6 @@
 
     .codemirror-container :global(.CodeMirror-gutters) {
         padding: 0 16px 0 8px;
-        border: none;
     }
 
     .codemirror-container :global(.error-loc) {
@@ -212,9 +210,7 @@
     bind:offsetHeight="{h}"
 >
     {#if !codeMirror}
-        <div>
-            loading editor...
-        </div>
+        <div>loading editor...</div>
     {/if}
 
     <textarea bind:this="{textAreaRef}" readonly></textarea>
