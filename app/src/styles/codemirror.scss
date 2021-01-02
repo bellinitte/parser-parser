@@ -5,6 +5,7 @@
 :global(.CodeMirror) {
     --undefined: #ff0000;
     --selection-opacity: 0.15;
+    --selected-line-opacity: 0.1;
     width: 100%;
     height: 100%;
     direction: ltr;
@@ -185,6 +186,7 @@
 
 :global(.cm-s-default .cm-nonterminal) {
     color: var(--accent-color);
+    font-weight: bolder;
 }
 
 :global(.cm-s-default .cm-number) {
@@ -219,7 +221,8 @@
 }
 
 :global(.CodeMirror-activeline-background) {
-    background: var(--undefined);
+    background: var(--fg-color);
+    opacity: var(--selected-line-opacity);
 }
 
 /* STOP */

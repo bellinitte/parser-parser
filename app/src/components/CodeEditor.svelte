@@ -124,6 +124,7 @@
                   }
                 : false,
             scrollbarStyle: "native",
+            styleActiveLine: true,
         };
 
         if (!tab) {
