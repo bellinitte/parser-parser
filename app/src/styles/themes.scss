@@ -28,13 +28,23 @@
     --error-color: #f92672;
 }
 
-:global(body[theme="solarized"]) {
+:global(body[theme="solarized dark"]) {
     --bg-color: #002b36;
-    --fg-color: #eee8d5;
-    --accent-color: #b58900;
+    --fg-color: #839496;
+    --accent-color: #859900;
     --string-color: #2aa198;
     --number-color: #6c71c4;
     --comment-color: #586e75;
+    --error-color: #dc322f;
+}
+
+:global(body[theme="solarized light"]) {
+    --bg-color: #fdf6e3;
+    --fg-color: #657b83;
+    --accent-color: #859900;
+    --string-color: #2aa198;
+    --number-color: #6c71c4;
+    --comment-color: #93a1a1;
     --error-color: #dc322f;
 }
 
